@@ -1,0 +1,81 @@
+name: Build ECE340 L4 Chinese PPT
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+    paths:
+      - '.github/workflows/build-l4-ppt.yml'
+      - 'l4/generator.part*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libreoffice poppler-utils fonts-noto-cjk
+          python -m pip install --upgrade pip
+          python -m pip install python-pptx pymupdf pillow matplotlib lxml
+      - name: Reconstruct generator
+        run: |
+          cat l4/generator.part* | base64 -d | gzip -d > l4/generate_l4.py
+          python -m py_compile l4/generate_l4.py
+      - name: Download original lecture PDF
+        run: |
+          curl -L --fail --retry 3 \
+            'https://courses.grainger.illinois.edu/ece340/sp2020/Dallesasse_Slides/ECE340_L4_S18_Posted.pdf' \
+            -o l4/ECE340_L4_S18_Posted.pdf
+      - name: Generate PowerPoint in repository
+        working-directory: l4
+        run: python generate_l4.py
+      - name: Validate slides, notes, and PowerPoint export
+        run: |
+          mkdir -p l4/rendered
+          libreoffice --headless --convert-to pdf --outdir l4/rendered \
+            'l4/ECE340_L4_S18_Posted_中文忠实重建_逐页讲稿版.pptx'
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib, fitz
+          from pptx import Presentation
+
+          ppt = Path('l4/ECE340_L4_S18_Posted_中文忠实重建_逐页讲稿版.pptx')
+          pdf = Path('l4/rendered/ECE340_L4_S18_Posted_中文忠实重建_逐页讲稿版.pdf')
+          prs = Presentation(ppt)
+          assert len(prs.slides) == 47, len(prs.slides)
+          missing = []
+          for i, slide in enumerate(prs.slides, 1):
+              text = slide.notes_slide.notes_text_frame.text
+              if '[Sources]' not in text:
+                  missing.append(i)
+          assert not missing, f'Missing notes/sources: {missing}'
+          doc = fitz.open(pdf)
+          assert doc.page_count == 47, doc.page_count
+          digest = hashlib.sha256(ppt.read_bytes()).hexdigest()
+          report = f'''# ECE340 L4 build report
+
+- Generated inside GitHub Actions: yes
+- Source PDF pages: 47
+- PPT slides: {len(prs.slides)}
+- Slides with notes and [Sources]: 47
+- PowerPoint-to-PDF rendered pages: {doc.page_count}
+- SHA-256: `{digest}`
+'''
+          Path('l4/BUILD_REPORT.md').write_text(report, encoding='utf-8')
+          PY
+      - name: Commit generated PPT
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add 'l4/ECE340_L4_S18_Posted_中文忠实重建_逐页讲稿版.pptx' l4/BUILD_REPORT.md
+          if git diff --cached --quiet; then
+            echo 'No generated changes.'
+          else
+            git commit -m 'Generate faithful Chinese ECE340 L4 PowerPoint'
+            git push
+          fi
