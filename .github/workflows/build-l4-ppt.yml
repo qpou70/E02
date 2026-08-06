@@ -1,14 +1,67 @@
 name: Build ECE340 L4 Chinese PPT
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - master
-  workflow_dispatch:
+    paths:
+      - .github/workflows/build-l4-ppt.yml
+      - l4/generator.part00
+      - l4/generator.part01
+      - l4/generator.part02
+      - l4/generator.part03
+      - l4/generator.part04
+      - l4/generator.part05
+      - l4/generator.part06
+      - l4/validate_l4.py
+
+permissions:
+  contents: write
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Verify Actions runner
-        run: echo "GitHub Actions is running"
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install system and Python dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libreoffice poppler-utils fonts-noto-cjk
+          python -m pip install --upgrade pip
+          python -m pip install python-pptx pymupdf pillow matplotlib lxml
+
+      - name: Reconstruct the PowerPoint generator
+        run: |
+          cat l4/generator.part00 l4/generator.part01 l4/generator.part02 l4/generator.part03 l4/generator.part04 l4/generator.part05 l4/generator.part06 | base64 --decode | gzip --decompress > l4/generate_l4.py
+          python -m py_compile l4/generate_l4.py
+
+      - name: Download the original ECE340 L4 PDF
+        run: |
+          curl --location --fail --retry 3 "https://courses.grainger.illinois.edu/ece340/sp2020/Dallesasse_Slides/ECE340_L4_S18_Posted.pdf" --output l4/ECE340_L4_S18_Posted.pdf
+
+      - name: Generate the Chinese PowerPoint in GitHub Actions
+        working-directory: l4
+        run: python generate_l4.py
+
+      - name: Render the PowerPoint and validate the result
+        run: |
+          mkdir -p l4/rendered
+          libreoffice --headless --convert-to pdf --outdir l4/rendered "l4/ECE340_L4_S18_Posted_中文忠实重建_逐页讲稿版.pptx"
+          python l4/validate_l4.py
+
+      - name: Commit the generated PowerPoint to the repository
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "l4/ECE340_L4_S18_Posted_中文忠实重建_逐页讲稿版.pptx" l4/BUILD_REPORT.md
+          if git diff --cached --quiet; then
+            echo "No generated changes to commit."
+          else
+            git commit -m "Generate faithful Chinese ECE340 L4 PowerPoint"
+            git push
+          fi
