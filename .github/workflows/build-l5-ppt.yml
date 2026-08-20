@@ -1,0 +1,79 @@
+name: Build ECE340 L5 Chinese PPT pages 08-24
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+    paths:
+      - '.github/workflows/build-l5-ppt.yml'
+      - 'l5/generator.part*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libreoffice poppler-utils fonts-noto-cjk
+          python -m pip install --upgrade pip
+          python -m pip install python-pptx pymupdf pillow lxml
+      - name: Reconstruct generator
+        run: |
+          cat l5/generator.part* | base64 -d | gzip -d > l5/generate_l5_stage.py
+          python -m py_compile l5/generate_l5_stage.py
+      - name: Download original lecture PDF
+        run: |
+          curl -L --fail --retry 3 \
+            'https://courses.grainger.illinois.edu/ece340/sp2020/Dallesasse_Slides/ECE340_L5_S18_Posted.pdf' \
+            -o l5/ECE340_L5_S18_Posted.pdf
+      - name: Generate PowerPoint in repository
+        working-directory: l5
+        run: python generate_l5_stage.py
+      - name: Validate PPT and export
+        run: |
+          mkdir -p l5/rendered
+          libreoffice --headless --convert-to pdf --outdir l5/rendered \
+            'l5/ECE340_L5_S18_Posted_中文忠实重建_阶段版_完成第8-24页.pptx'
+          python - <<'PY'
+          from pathlib import Path
+          import re, fitz, hashlib
+          from pptx import Presentation
+          ppt=Path('l5/ECE340_L5_S18_Posted_中文忠实重建_阶段版_完成第8-24页.pptx')
+          pdf=Path('l5/rendered/ECE340_L5_S18_Posted_中文忠实重建_阶段版_完成第8-24页.pdf')
+          prs=Presentation(ppt)
+          assert len(prs.slides)==52, len(prs.slides)
+          bad=[]
+          for p in range(8,25):
+              t=prs.slides[p-1].notes_slide.notes_text_frame.text
+              if '[Sources]' not in t:
+                  bad.append((p,'missing sources'))
+              main=t.split('[Sources]')[0]
+              han=''.join(re.findall(r'[\u4e00-\u9fff]',main))
+              if len(han)<300 and p not in (15,21):
+                  bad.append((p,len(han)))
+              if p in (15,21) and len(han)<200:
+                  bad.append((p,len(han)))
+          assert not bad, bad
+          doc=fitz.open(pdf)
+          assert doc.page_count==52, doc.page_count
+          report=Path('l5/BUILD_REPORT_08_24.md')
+          old=report.read_text(encoding='utf-8') if report.exists() else ''
+          digest=hashlib.sha256(ppt.read_bytes()).hexdigest()
+          report.write_text(old + f'\n- LibreOffice PDF render pages: {doc.page_count}\n- Workflow validation: passed\n- Final PPT SHA-256 after validation: `{digest}`\n',encoding='utf-8')
+          PY
+      - name: Commit generated PPT and report
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add 'l5/ECE340_L5_S18_Posted_中文忠实重建_阶段版_完成第8-24页.pptx' l5/BUILD_REPORT_08_24.md
+          if git diff --cached --quiet; then
+            echo 'No generated changes.'
+          else
+            git commit -m 'Generate ECE340 L5 Chinese stage deck pages 8-24'
+            git push
+          fi
