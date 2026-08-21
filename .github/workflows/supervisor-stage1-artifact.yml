@@ -1,0 +1,21 @@
+name: Supervisor Stage1 visual artifact
+on:
+  push:
+    branches: [master]
+    paths:
+      - '.github/workflows/supervisor-stage1-artifact.yml'
+permissions:
+  contents: read
+jobs:
+  pack:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/upload-artifact@v4
+        with:
+          name: supervisor-stage1-visuals
+          path: |
+            l5/stage1_visual_review_08_24/rendered
+            l5/stage1_visual_review_08_24/comparison
+            l5/stage1_visual_review_08_24/contact_sheet_stage1_pages_09_12_18_20_23.jpg
+          retention-days: 1
