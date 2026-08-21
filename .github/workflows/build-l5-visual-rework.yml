@@ -1,0 +1,379 @@
+name: Build ECE340 L5 visual rework deck pages 08-24
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+    paths:
+      - '.github/workflows/build-l5-visual-rework.yml'
+      - 'l5/FORCE_L5_VISUAL_REWORK_TRIGGER.txt'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libreoffice fonts-noto-cjk fonts-dejavu-core
+          python -m pip install --upgrade pip
+          python -m pip install python-pptx pymupdf pillow
+      - name: Rework visual pages 8-24
+        run: |
+          cat > l5/visual_rework_patch.py <<'PY'
+          from pathlib import Path
+          import zipfile, hashlib, re, math, shutil
+          from PIL import Image, ImageOps, ImageDraw, ImageFont
+          from pptx import Presentation
+          from pptx.util import Inches, Pt
+          from pptx.enum.text import PP_ALIGN
+          from pptx.enum.shapes import MSO_SHAPE, MSO_CONNECTOR, MSO_SHAPE_TYPE
+          from pptx.dml.color import RGBColor
+          from pptx.enum.dml import MSO_THEME_COLOR
+
+          BASE = Path('l5/ECE340_L5_S18_Posted_中文忠实重建_四次返修版_第8-24页.pptx')
+          OUT = Path('l5/ECE340_L5_S18_Posted_中文忠实重建_视觉返修版_第8-24页.pptx')
+          AS = Path('l5/visual_rework_assets'); AS.mkdir(exist_ok=True)
+          assert BASE.exists(), BASE
+          prs = Presentation(BASE)
+          W, H = prs.slide_width, prs.slide_height
+          EMU = 914400
+          BLUE = RGBColor(0,50,110); RED=RGBColor(170,30,45); ORANGE=RGBColor(239,135,39)
+          PALE = RGBColor(232,240,250); LIGHT = RGBColor(247,249,252); BLACK = RGBColor(25,25,25); GRAY=RGBColor(90,90,90)
+          GREEN=RGBColor(40,120,90); GOLD=RGBColor(232,190,80)
+
+          def clear(slide):
+              for sh in list(slide.shapes):
+                  sh.element.getparent().remove(sh.element)
+          def tf_textbox(slide,x,y,w,h,text,size=18,bold=False,color=BLACK,align=None,fill=None,line=None):
+              sh=slide.shapes.add_textbox(Inches(x),Inches(y),Inches(w),Inches(h))
+              if fill is None: sh.fill.background()
+              else: sh.fill.solid(); sh.fill.fore_color.rgb=fill
+              if line is None: sh.line.fill.background()
+              else: sh.line.color.rgb=line; sh.line.width=Pt(1)
+              tf=sh.text_frame; tf.clear(); tf.word_wrap=True
+              tf.margin_left=Pt(5); tf.margin_right=Pt(5); tf.margin_top=Pt(2); tf.margin_bottom=Pt(2)
+              p=tf.paragraphs[0];
+              r=p.add_run(); r.text=text; r.font.name='Microsoft YaHei'; r.font.size=Pt(size); r.font.bold=bold; r.font.color.rgb=color
+              if align: p.alignment=align
+              return sh
+          def add_header(slide,title,pno):
+              bar=slide.shapes.add_shape(MSO_SHAPE.RECTANGLE,0,0,W,Inches(0.58)); bar.fill.solid(); bar.fill.fore_color.rgb=BLUE; bar.line.fill.background()
+              tf_textbox(slide,0.45,0.08,9.5,0.42,title,20,True,RGBColor(255,255,255))
+              tag=slide.shapes.add_shape(MSO_SHAPE.RECTANGLE,Inches(10.1),Inches(0.10),Inches(2.25),Inches(0.32)); tag.fill.solid(); tag.fill.fore_color.rgb=RED; tag.line.fill.background()
+              tf_textbox(slide,10.14,0.12,2.16,0.26,'福州大学 · ECE340',10,True,RGBColor(255,255,255),PP_ALIGN.CENTER)
+              tf_textbox(slide,0.45,7.04,8.5,0.24,'ECE340 半导体器件基础｜中文忠实重建｜对应原 PDF 第 %d 页'%pno,8,False,GRAY)
+              tf_textbox(slide,12.35,7.04,0.45,0.24,str(pno),8,False,GRAY,PP_ALIGN.RIGHT)
+          def add_box(slide,x,y,w,h,text,size=16,bold=False,fill=LIGHT,line=BLUE,color=BLACK):
+              sh=slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE,Inches(x),Inches(y),Inches(w),Inches(h))
+              sh.fill.solid(); sh.fill.fore_color.rgb=fill; sh.line.color.rgb=line; sh.line.width=Pt(1.1)
+              tf=sh.text_frame; tf.clear(); tf.word_wrap=True; tf.margin_left=Pt(8); tf.margin_right=Pt(8); tf.margin_top=Pt(5); tf.margin_bottom=Pt(5)
+              p=tf.paragraphs[0]; r=p.add_run(); r.text=text; r.font.name='Microsoft YaHei'; r.font.size=Pt(size); r.font.bold=bold; r.font.color.rgb=color
+              return sh
+          def add_label(slide,x,y,w,h,text,size=12,bold=False,color=BLACK,fill=None):
+              return tf_textbox(slide,x,y,w,h,text,size,bold,color,PP_ALIGN.CENTER,fill)
+          def line(slide,x1,y1,x2,y2,color=BLUE,width=1.5,arrow=False):
+              c=slide.shapes.add_connector(MSO_CONNECTOR.STRAIGHT,Inches(x1),Inches(y1),Inches(x2),Inches(y2)); c.line.color.rgb=color; c.line.width=Pt(width)
+              if arrow: c.line.end_arrowhead=True
+              return c
+          def shape_text(sh):
+              return sh.text if getattr(sh,'has_text_frame',False) else ''
+          def save_pic(sh, name, crop=(0,0,0,0)):
+              p=AS/name
+              p.write_bytes(sh.image.blob)
+              try:
+                  im=Image.open(p).convert('RGB')
+                  w,h=im.size; l,t,r,b=crop
+                  im=im.crop((int(w*l),int(h*t),int(w*(1-r)),int(h*(1-b))))
+                  im.save(p,quality=92)
+              except Exception:
+                  pass
+              return p
+          def get_pics(idx):
+              pics=[sh for sh in prs.slides[idx-1].shapes if getattr(sh,'shape_type',None)==MSO_SHAPE_TYPE.PICTURE]
+              return sorted(pics,key=lambda s:s.width*s.height,reverse=True)
+          def add_img_or_ph(slide,path,x,y,w,h,label='图片'):
+              if path and Path(path).exists():
+                  slide.shapes.add_picture(str(path),Inches(x),Inches(y),Inches(w),Inches(h))
+              else:
+                  add_box(slide,x,y,w,h,label,14,False,fill=RGBColor(245,245,245),line=GRAY)
+          def oval(slide,x,y,w,h,fill=PALE,linec=BLUE):
+              sh=slide.shapes.add_shape(MSO_SHAPE.OVAL,Inches(x),Inches(y),Inches(w),Inches(h)); sh.fill.solid(); sh.fill.fore_color.rgb=fill; sh.line.color.rgb=linec; return sh
+          def rect(slide,x,y,w,h,fill=PALE,linec=BLUE):
+              sh=slide.shapes.add_shape(MSO_SHAPE.RECTANGLE,Inches(x),Inches(y),Inches(w),Inches(h)); sh.fill.solid(); sh.fill.fore_color.rgb=fill; sh.line.color.rgb=linec; return sh
+          def add_formula(slide,x,y,w,h,text,size=18):
+              return tf_textbox(slide,x,y,w,h,text,size,False,BLACK,PP_ALIGN.CENTER,fill=RGBColor(255,255,255),line=BLUE)
+
+          # save selected pictures before clearing
+          pics = {}
+          for p in [10,11,14,17,19,20,22,23]:
+              arr=[]
+              for i,sh in enumerate(get_pics(p)[:5]):
+                  arr.append(save_pic(sh, f'p{p}_{i}.jpg', crop=(0.01,0.06,0.01,0.05)))
+              pics[p]=arr
+
+          # Page 8
+          s=prs.slides[7]; clear(s); add_header(s,'外延生长方法（Epitaxial Growth Methods）',8)
+          tf_textbox(s,0.62,0.80,11.2,0.35,'本页只保留方法谱系，不把长英文全称硬挤在同一行。英文全称作为二级说明，保证 PowerPoint 中不压字。',14,False,GRAY)
+          items=[('LPE','液相外延','Liquid Phase Epitaxy'),('VPE','气相外延','Vapor Phase Epitaxy'),('  ├─ 卤化物法','','Halide process'),('  ├─ 氢化物法','','Hydride process'),('  └─ MOCVD','金属有机化学气相沉积','Metal-Organic Chemical Vapor Deposition'),('MBE','分子束外延','Molecular Beam Epitaxy'),('ALE','原子层外延','Atomic Layer Epitaxy')]
+          y=1.28
+          for code,cn,en in items:
+              indent=0.0 if not code.startswith('  ') else 0.5
+              add_box(s,0.75+indent,y,2.15,0.42,code.strip(),16,True,fill=PALE,line=BLUE)
+              add_box(s,3.05+indent,y,3.65-indent,0.42,cn if cn else code.strip(),15,True,fill=RGBColor(255,255,255),line=BLUE)
+              tf_textbox(s,6.85,y+0.05,4.75,0.30,en,12,False,GRAY)
+              y += 0.57
+          add_box(s,0.80,6.05,10.9,0.60,'关键关系：外延方法的差别不在“是否结晶”，而在物质输运相态、反应环境和界面生长控制方式。VPE 下的卤化物、氢化物和 MOCVD 是同一级的气相路线。',14,False,fill=RGBColor(255,250,235),line=ORANGE)
+
+          # Page 9
+          s=prs.slides[8]; clear(s); add_header(s,'硅的气相外延（Vapor Phase Epitaxy of Si）',9)
+          add_formula(s,0.65,0.78,5.4,0.38,'SiCl₄ + 2H₂ ⇌ Si + 4HCl',18)
+          add_formula(s,6.28,0.78,4.5,0.38,'SiH₄ → Si + 2H₂',18)
+          add_img_or_ph(s,pics.get(9,[None])[0] if pics.get(9) else None,0.72,1.35,3.1,2.65,'原设备照片')
+          # native reactor diagram
+          rect(s,4.25,1.25,6.8,3.20,RGBColor(250,253,255),BLUE); add_label(s,7.0,1.28,1.6,0.28,'石英反应腔',12,True,BLUE)
+          line(s,4.35,1.75,5.8,1.75,BLUE,2,True); add_label(s,4.3,1.45,1.2,0.28,'气体入口',11,True)
+          rect(s,5.9,1.52,0.20,1.1,GOLD,ORANGE); add_label(s,5.55,2.62,1.0,0.25,'挡流板',10,True)
+          rect(s,6.65,3.22,2.35,0.28,RGBColor(120,120,120),GRAY); add_label(s,6.95,3.55,1.6,0.25,'基座盘',11,True)
+          for x in [6.82,7.45,8.08]: oval(s,x,2.86,0.46,0.18,RGBColor(185,220,255),BLUE)
+          add_label(s,7.12,2.52,1.3,0.25,'硅片/晶圆',11,True)
+          rect(s,7.55,3.50,0.55,0.75,RGBColor(210,210,210),GRAY); add_label(s,7.35,4.25,1.0,0.25,'支座',10,True)
+          line(s,10.0,1.75,10.95,1.75,BLUE,2,True); add_label(s,10.0,1.45,1.0,0.25,'排气口',11,True)
+          for i in range(4): line(s,6.4+i*0.55,4.55,6.65+i*0.55,4.18,RED,1.2)
+          add_label(s,5.95,4.62,2.3,0.28,'射频源 / RF source',11,True,RED)
+          add_box(s,0.80,5.35,10.6,0.75,'反应器图已改为扁平化中文示意：只保留一套标签，气体从左进入，经挡流板后流过硅片，反应产物从右侧排出，RF 加热维持外延生长温度。',14,False,fill=RGBColor(255,250,235),line=ORANGE)
+
+          # Page 10
+          s=prs.slides[9]; clear(s); add_header(s,'MOCVD 早期系统',10)
+          add_img_or_ph(s,pics.get(10,[None])[0] if pics.get(10) else None,1.1,1.05,10.2,4.7,'早期 MOCVD 系统照片（已去除原页标题条）')
+          add_box(s,1.1,5.95,10.2,0.55,'图中只保留设备照片本体；MOCVD 用金属有机源和氢化物源在衬底表面发生气相反应，实现 III–V 族化合物半导体外延。',14,False,fill=RGBColor(255,255,255),line=BLUE)
+
+          # Page 11
+          s=prs.slides[10]; clear(s); add_header(s,'MOCVD 今日系统',11)
+          add_formula(s,0.78,0.82,10.8,0.42,'金属有机源 + 氢化物源 → III–V 族外延层',18)
+          arr=pics.get(11,[])
+          add_img_or_ph(s,arr[0] if len(arr)>0 else None,0.75,1.45,5.1,2.15,'MOCVD 设备图 1')
+          add_img_or_ph(s,arr[1] if len(arr)>1 else None,6.05,1.45,5.1,2.15,'MOCVD 设备图 2')
+          add_img_or_ph(s,arr[2] if len(arr)>2 else None,3.35,4.05,5.5,1.85,'MOCVD 设备图 3')
+          add_box(s,0.90,6.10,10.6,0.52,'三张设备图已按照片本体重新放置，删除原页标题条和残留页码；上方反应关系与图片保持安全间距。',14,False,fill=RGBColor(255,250,235),line=ORANGE)
+
+          # Page 12
+          s=prs.slides[11]; clear(s); add_header(s,'分子束外延（Molecular Beam Epitaxy）',12)
+          rect(s,0.75,1.12,5.65,4.35,RGBColor(250,253,255),BLUE)
+          add_label(s,2.35,1.20,2.1,0.30,'超高真空腔体',12,True,BLUE)
+          # sources and beams
+          srcs=[('Si',1.0),('Al',1.55),('Ga',2.1),('As',2.65),('Be',3.2)]
+          for lab,x in srcs:
+              rect(s,x,4.65,0.38,0.45,RGBColor(240,240,240),GRAY); add_label(s,x,4.72,0.38,0.18,lab,8,True)
+              line(s,x+0.18,4.62,3.45,2.45,ORANGE,1.1,True)
+          rect(s,3.10,2.30,1.10,0.35,RGBColor(190,225,255),BLUE); add_label(s,3.08,2.33,1.14,0.22,'GaAs 衬底',10,True)
+          rect(s,1.65,3.55,3.35,0.16,RGBColor(200,200,200),GRAY); add_label(s,2.35,3.76,1.7,0.24,'快门（Shutters）',10,True)
+          add_label(s,2.65,1.72,1.7,0.24,'分子束',11,True,ORANGE)
+          arr=pics.get(12,[])
+          add_img_or_ph(s,arr[0] if arr else None,6.75,1.25,4.75,3.25,'右侧显微图（保留 4×4 / GaAs substrate / 10 nm / <100>）')
+          add_box(s,6.75,4.75,4.75,0.62,'右侧显微图保留原始尺度和晶向信息；左侧示意图改为一套中文标签，不再叠加红框贴纸。',14,False,fill=RGBColor(255,250,235),line=ORANGE)
+
+          # Page 14
+          s=prs.slides[13]; clear(s); add_header(s,'生产型 MBE 系统',14)
+          arr=pics.get(14,[])
+          add_img_or_ph(s,arr[0] if len(arr)>0 else None,0.8,1.0,5.3,4.45,'生产型 MBE 设备图 1')
+          add_img_or_ph(s,arr[1] if len(arr)>1 else None,6.35,1.0,5.3,4.45,'生产型 MBE 设备图 2')
+          add_label(s,2.4,5.60,7.6,0.28,'http://www.oxfordplasma.de/systems/v150_mbe.htm',10,False,GRAY)
+          add_box(s,1.0,6.05,10.6,0.52,'本页只保留一次完整网址，设备图按照片本体重新放置，不再带入源页标题条或截断网址。',14,False,fill=RGBColor(255,250,235),line=ORANGE)
+
+          # Page 16
+          s=prs.slides[15]; clear(s); add_header(s,'键合类型（Types of Bonding）',16)
+          data=[('离子键','Ionic bonding','电子转移形成正、负离子，库仑吸引占主导。'),('共价键','Covalent bonding','相邻原子共享价电子，方向性强。'),('金属键','Metallic bonding','价电子离域化，形成电子海。'),('混合离子-共价键','Mixed ionic-covalent bonding','化合物半导体中常见，既有电荷转移又有轨道共享。')]
+          y=1.0
+          for cn,en,desc in data:
+              add_box(s,0.75,y,3.2,0.56,cn,16,True,fill=PALE,line=BLUE)
+              tf_textbox(s,4.05,y+0.05,2.75,0.20,en,10,False,GRAY)
+              tf_textbox(s,4.05,y+0.27,4.0,0.22,desc,11,False,BLACK)
+              y+=0.92
+          arr=pics.get(16,[])
+          add_img_or_ph(s,arr[0] if arr else None,8.35,1.10,3.05,3.70,'原键合示意图')
+          add_box(s,0.85,5.65,10.4,0.78,'本页采用短行宽与两级排版，中文类型、英文术语和物理解释分开放置，避免 PowerPoint 字体度量变化导致自动换行错位。',14,False,fill=RGBColor(255,250,235),line=ORANGE)
+
+          # Page 17
+          s=prs.slides[16]; clear(s); add_header(s,'原子轨道电子占据表',17)
+          arr=pics.get(17,[])
+          add_img_or_ph(s,arr[0] if arr else None,0.72,0.92,11.15,5.6,'原子轨道电子占据表（完整保留）')
+          add_label(s,0.9,6.58,10.8,0.26,'高密度原表完整保留，已重新裁图去除原页标题条；红箭头、重点框、行列关系不删改。',10,False,GRAY)
+
+          # Page 18
+          s=prs.slides[17]; clear(s); add_header(s,'硅的芯层电子与价电子',18)
+          # shell diagram
+          add_label(s,1.3,1.0,3.2,0.28,'电子壳层示意',15,True,BLUE)
+          oval(s,2.4,2.05,1.2,1.2,RGBColor(255,235,210),ORANGE); add_label(s,2.63,2.45,0.75,0.25,'+14',16,True,RED)
+          for r,label in [(2.0,'1s'),(2.8,'2s/2p'),(3.6,'3s/3p 价轨道')]:
+              oval(s,2.4-(r-1.2)/2,2.05-(r-1.2)/2,r,r,fill=RGBColor(255,255,255),linec=BLUE)
+              add_label(s,0.78,1.15+(r-2.0)*0.85,1.55,0.25,label,10,False,GRAY)
+          add_label(s,4.05,2.08,1.5,0.3,'芯层电子',12,True,BLUE); line(s,4.05,2.24,3.2,2.55,BLUE,1.2,True)
+          add_label(s,4.05,3.58,1.5,0.3,'价电子',12,True,RED); line(s,4.05,3.70,4.10,4.20,RED,1.2,True)
+          # energy diagram
+          add_label(s,7.0,1.0,3.0,0.28,'能级示意',15,True,BLUE)
+          for yy,txt in [(4.80,'1s'),(4.10,'2s'),(3.55,'2p'),(2.65,'3s'),(2.15,'3p'),(1.42,'电离/零能级')]:
+              line(s,7.1,yy,9.55,yy,BLUE if yy>2.3 else RED,1.2)
+              add_label(s,9.70,yy-0.13,1.0,0.22,txt,10,False)
+          add_label(s,6.1,3.15,0.9,0.35,'价能级',11,True,RED); line(s,6.92,3.25,7.1,2.65,RED,1.0,True)
+          add_label(s,6.0,4.45,1.1,0.35,'芯层能级',11,True,BLUE); line(s,7.0,4.55,7.1,4.8,BLUE,1.0,True)
+          add_box(s,0.95,5.80,10.8,0.60,'本页以中文示意重建两幅图，保留 +14、1s/2s/2p/3s/3p、价轨道、芯层电子、价电子和电离能级关系，不再使用红框贴纸覆盖英文原图。',14,False,fill=RGBColor(255,250,235),line=ORANGE)
+
+          # Page 19
+          s=prs.slides[18]; clear(s); add_header(s,'轨道波函数形状',19)
+          arr=pics.get(19,[])
+          add_img_or_ph(s,arr[0] if arr else None,1.35,1.05,9.9,5.25,'Orbitron 轨道图')
+          add_label(s,3.2,6.48,6.7,0.24,'图源：http://winter.group.shef.ac.uk/orbitron/',10,False,GRAY)
+
+          # Page 20
+          s=prs.slides[19]; clear(s); add_header(s,'sp³ 杂化与四面体几何',20)
+          formulas=['|sp³₁⟩ = 1/2 |s⟩ + √3/2 |p₁⟩','|sp³₂⟩ = 1/2 |s⟩ − 1/√12 |p₁⟩ + √(2/3) |p₂⟩','|sp³₃⟩ = 1/2 |s⟩ − 1/√12 |p₁⟩ − 1/√6 |p₂⟩ + 1/√2 |p₃⟩','|sp³₄⟩ = 1/2 |s⟩ − 1/√12 |p₁⟩ − 1/√6 |p₂⟩ − 1/√2 |p₃⟩']
+          y=0.95
+          for f in formulas:
+              add_formula(s,0.72,y,6.2,0.47,f,13); y+=0.62
+          rect(s,7.35,1.0,4.2,3.75,RGBColor(250,253,255),BLUE)
+          add_label(s,7.60,1.18,1.2,0.25,'1 个 s 轨道',11,True); oval(s,7.78,1.55,0.6,0.6,RGBColor(210,230,255),BLUE)
+          add_label(s,9.55,1.18,1.3,0.25,'3 个 p 轨道',11,True)
+          for i in range(3): line(s,9.85,1.85,10.75,1.45+0.4*i,ORANGE,2)
+          add_label(s,8.5,2.95,2.0,0.3,'4 个 sp³ 轨道',12,True,BLUE)
+          cx,cy=9.45,3.65
+          pts=[(cx,cy-0.7),(cx-0.9,cy+0.45),(cx+0.9,cy+0.45),(cx,cy+0.75)]
+          for px,py in pts: line(s,cx,cy,px,py,BLUE,1.5); oval(s,px-0.10,py-0.10,0.20,0.20,GOLD,ORANGE)
+          add_label(s,8.25,4.55,2.4,0.28,'109.5° 键角 / 四面体几何',12,True,RED)
+          add_box(s,0.85,5.65,10.6,0.70,'右侧 sp³ 示意区已重做：来源文字、109.5° 键角说明和正文分离，不再发生网址、图注与中文说明重叠。',14,False,fill=RGBColor(255,250,235),line=ORANGE)
+
+          # Page 22
+          s=prs.slides[21]; clear(s); add_header(s,'General Comments：E-k 图与类比',22)
+          left=['E-k 图中的斜率对应电子速度。','曲率决定有效质量，进而影响载流子响应。','能带图中的颜色和形状只代表模型，不应当被当作真实空间轨迹。','蝴蝶类比提醒我们：图像能帮助理解，但不能替代物理定义。']
+          y=1.0
+          for t in left:
+              add_box(s,0.7,y,4.4,0.55,t,13,False,fill=RGBColor(255,255,255),line=BLUE); y+=0.72
+          arr=pics.get(22,[])
+          positions=[(5.45,1.05,2.75,1.8),(8.55,1.05,2.75,1.8),(5.45,3.30,2.75,1.8),(8.55,3.30,2.75,1.8)]
+          for i,pos in enumerate(positions): add_img_or_ph(s,arr[i] if i<len(arr) else None,*pos,label='E-k / 类比图')
+          add_label(s,5.55,5.55,5.7,0.34,'四张图与蝴蝶类比保持对应；重新裁图避免源页标题条残留。',11,False,GRAY)
+
+          # Page 23
+          s=prs.slides[22]; clear(s); add_header(s,'氢分子中的成键与反键轨道',23)
+          add_box(s,0.70,0.90,3.0,2.05,'元素氢：1s¹\n氢原子 #1：2 个状态，1 个电子\n氢原子 #2：2 个状态，1 个电子\nH₂：4 个状态，2 个电子',13,False,fill=PALE,line=BLUE)
+          # energy diagram
+          line(s,4.7,2.05,7.1,1.30,RED,1.4,True); line(s,4.7,2.95,7.1,3.65,BLUE,1.4,True)
+          line(s,8.8,2.05,7.1,1.30,RED,1.4,True); line(s,8.8,2.95,7.1,3.65,BLUE,1.4,True)
+          line(s,4.1,2.5,5.25,2.5,GRAY,1.5); add_label(s,4.0,2.18,1.3,0.24,'H 原子 #1',10,False)
+          line(s,8.25,2.5,9.4,2.5,GRAY,1.5); add_label(s,8.2,2.18,1.3,0.24,'H 原子 #2',10,False)
+          line(s,6.45,1.30,7.75,1.30,RED,2); add_label(s,6.15,0.95,2.0,0.25,'反键轨道（高能）',11,True,RED)
+          line(s,6.45,3.65,7.75,3.65,BLUE,2); add_label(s,6.05,3.88,2.3,0.25,'成键轨道（低能）',11,True,BLUE)
+          add_label(s,8.35,1.05,3.0,0.42,'电子不位于两核之间\n能量升高',11,False,RED)
+          add_label(s,8.35,3.55,3.0,0.42,'电子位于两核之间\n能量降低',11,False,BLUE)
+          add_box(s,0.80,4.85,10.8,1.22,'两个氢原子的 1s 轨道线性组合形成两个分子轨道：能量较低的是成键轨道，电子概率密度集中在两核之间，会降低系统能量；能量较高的是反键轨道，电子不集中在两核之间，会削弱成键。H₂ 的两个电子在 0 K 下优先填入成键轨道，因此形成稳定分子。',14,False,fill=RGBColor(255,255,255),line=BLUE)
+
+          # Page 24
+          s=prs.slides[23]; clear(s); add_header(s,'从原子能级到能带',24)
+          def table(slide,x,y,headers,rows,widths):
+              table=slide.shapes.add_table(len(rows)+1,len(headers),Inches(x),Inches(y),Inches(sum(widths)),Inches(0.42*(len(rows)+1))).table
+              for i,w in enumerate(widths): table.columns[i].width=Inches(w)
+              for j,h in enumerate(headers):
+                  cell=table.cell(0,j); cell.text=h; cell.fill.solid(); cell.fill.fore_color.rgb=BLUE
+                  for p in cell.text_frame.paragraphs:
+                      for r in p.runs: r.font.name='Microsoft YaHei'; r.font.size=Pt(10); r.font.bold=True; r.font.color.rgb=RGBColor(255,255,255)
+              for i,row in enumerate(rows,1):
+                  for j,val in enumerate(row):
+                      cell=table.cell(i,j); cell.text=val; cell.fill.solid(); cell.fill.fore_color.rgb=RGBColor(255,255,255)
+                      for p in cell.text_frame.paragraphs:
+                          for r in p.runs: r.font.name='Microsoft YaHei'; r.font.size=Pt(10); r.font.color.rgb=BLACK
+              return table
+          table(s,0.75,1.0,['轨道/带','可用状态数','电子数'],[['1s','N×2','N×2'],['2s','N×2','N×2'],['2p','N×6','N×6'],['3s/3p','N×8','N×4']], [1.5,1.6,1.4])
+          table(s,6.4,1.0,['能带','可用状态数','0 K 电子数'],[['导带','N×4','0'],['价带','N×4','N×4'],['芯层','N×10','N×10'],['价层','N×8','N×4']], [1.6,1.8,1.8])
+          add_box(s,0.88,4.70,10.7,0.95,'表格中的英文表头已完成中文化：Available States 改为可用状态数，# of Electron 改为电子数，Conduction Band 改为导带，Valence Band 改为价带；所有 N×8、N×4、0 K 和电子组态保持不变。',14,False,fill=RGBColor(255,250,235),line=ORANGE)
+
+          prs.save(OUT)
+          # check 13,15,21 unchanged
+          with zipfile.ZipFile(BASE) as zb, zipfile.ZipFile(OUT) as zo:
+              for p in [13,15,21]:
+                  assert zb.read(f'ppt/slides/slide{p}.xml') == zo.read(f'ppt/slides/slide{p}.xml'), f'accepted slide {p} changed'
+              assert len([n for n in zo.namelist() if n.startswith('ppt/slides/slide') and n.endswith('.xml')]) == 52
+          digest=hashlib.sha256(OUT.read_bytes()).hexdigest()
+          Path('l5/BUILD_REPORT_08_24_VISUAL_REWORK.md').write_text('\n'.join([
+              '# ECE340 L5 visual rework build report','',
+              '- Generated inside GitHub Actions: yes',
+              '- Base deck: 四次返修版',
+              '- Output deck: ECE340_L5_S18_Posted_中文忠实重建_视觉返修版_第8-24页.pptx',
+              '- Reworked pages: 8, 9, 10, 11, 12, 14, 16, 17, 18, 19, 20, 22, 23, 24',
+              '- Frozen pages verified byte-for-byte: 13, 15, 21',
+              '- Removed red-frame patch style by rebuilding pages 9, 12, 18, 23',
+              '- Rebuilt page 20 right-side sp3 diagram and non-overlapping note area',
+              '- Reworked pages 8 and 16 with PowerPoint-stable short line widths',
+              '- Completed page 24 table Chinese localization',
+              f'- Final PPT SHA-256 before render validation: `{digest}`',
+              '- Microsoft PowerPoint actual open check: not performed in GitHub Linux runner; rendered visual evidence is provided for supervisor review',
+              ''
+          ]), encoding='utf-8')
+          PY
+          python l5/visual_rework_patch.py
+      - name: Render slides and create visual evidence
+        run: |
+          mkdir -p l5/visual_review_08_24/full l5/visual_review_08_24/high_risk
+          libreoffice --headless --convert-to pdf --outdir l5/visual_review_08_24 \
+            'l5/ECE340_L5_S18_Posted_中文忠实重建_视觉返修版_第8-24页.pptx'
+          python - <<'PY'
+          from pathlib import Path
+          import fitz, zipfile, hashlib, re
+          from PIL import Image, ImageDraw, ImageFont
+          ppt=Path('l5/ECE340_L5_S18_Posted_中文忠实重建_视觉返修版_第8-24页.pptx')
+          pdf=Path('l5/visual_review_08_24/ECE340_L5_S18_Posted_中文忠实重建_视觉返修版_第8-24页.pdf')
+          assert ppt.exists() and pdf.exists()
+          doc=fitz.open(pdf); assert doc.page_count==52, doc.page_count
+          full=Path('l5/visual_review_08_24/full'); hi=Path('l5/visual_review_08_24/high_risk')
+          imgs=[]
+          for p in range(8,25):
+              page=doc[p-1]
+              pix=page.get_pixmap(matrix=fitz.Matrix(120/72,120/72), alpha=False)
+              out=full/f'page_{p:02d}.jpg'; pix.save(out); imgs.append(out)
+              if p in [8,9,12,16,18,20,23]:
+                  shutil_path=hi/f'page_{p:02d}.jpg'
+                  shutil_path.write_bytes(out.read_bytes())
+          thumbs=[]
+          for p in imgs:
+              im=Image.open(p).convert('RGB'); im.thumbnail((320,180)); canvas=Image.new('RGB',(340,220),'white'); canvas.paste(im,(10,10)); d=ImageDraw.Draw(canvas); d.text((10,195),p.stem.replace('page_','PDF page '),fill=(0,0,0)); thumbs.append(canvas)
+          sheet=Image.new('RGB',(4*340,5*220),'white')
+          for i,im in enumerate(thumbs): sheet.paste(im,((i%4)*340,(i//4)*220))
+          sheet.save('l5/visual_review_08_24/contact_sheet_08_24.jpg',quality=90)
+          with zipfile.ZipFile(ppt) as z:
+              slides=[n for n in z.namelist() if n.startswith('ppt/slides/slide') and n.endswith('.xml')]
+              notes=[n for n in z.namelist() if n.startswith('ppt/notesSlides/notesSlide') and n.endswith('.xml')]
+              assert len(slides)==52 and len(notes)>=52
+              for p in range(8,25):
+                  xml=z.read(f'ppt/notesSlides/notesSlide{p}.xml').decode('utf-8','ignore')
+                  assert '[Sources]' in re.sub('<[^>]+>','',xml), p
+          digest=hashlib.sha256(ppt.read_bytes()).hexdigest()
+          report=Path('l5/BUILD_REPORT_08_24_VISUAL_REWORK.md').read_text(encoding='utf-8')
+          report += '\n'.join([
+              f'- LibreOffice PDF render pages: {doc.page_count}',
+              '- Rendered JPG evidence: l5/visual_review_08_24/full/page_08.jpg through page_24.jpg',
+              '- High-risk rendered pages: 8, 9, 12, 16, 18, 20, 23',
+              '- Contact sheet: l5/visual_review_08_24/contact_sheet_08_24.jpg',
+              '- Workflow validation: passed',
+              f'- Final PPT SHA-256 after validation: `{digest}`',''
+          ])
+          Path('l5/BUILD_REPORT_08_24_VISUAL_REWORK.md').write_text(report,encoding='utf-8')
+          PY
+      - name: Commit visual rework deck and evidence
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add 'l5/ECE340_L5_S18_Posted_中文忠实重建_视觉返修版_第8-24页.pptx' \
+            l5/BUILD_REPORT_08_24_VISUAL_REWORK.md l5/visual_review_08_24
+          if git diff --cached --quiet; then
+            echo 'No generated changes.'
+          else
+            git commit -m 'Regenerate visual rework ECE340 L5 Chinese deck pages 8-24'
+            for i in 1 2 3 4 5; do
+              git pull --rebase origin master || true
+              git push && break
+              sleep 3
+            done
+          fi
