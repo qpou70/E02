@@ -19,10 +19,6 @@ on:
       - 'l5/stage1_strict_evidence.py'
       - 'l5/FORCE_L5_STAGE1_STRICT_RUN.txt'
 
-concurrency:
-  group: l5-stage1-strict-rework-build
-  cancel-in-progress: true
-
 permissions:
   contents: write
 
@@ -64,7 +60,7 @@ jobs:
           if git diff --cached --quiet; then
             echo 'No generated changes.'
           else
-            git commit -m 'Refine strict L5 stage1 visual issues on pages 9 12 20'
+            git commit -m 'Apply supervisor Stage 1 fixes on pages 12 and 23'
             git pull --rebase origin l5-stage1-strict-rework
             git push origin HEAD:l5-stage1-strict-rework
           fi
