@@ -49,7 +49,6 @@ jobs:
             'l5/ECE340_L5_S18_Posted_中文忠实重建_第一阶段严格返修_第9_12_18_20_23页.pptx'
           python l5/stage1_strict_evidence.py
       - name: Commit candidate outputs
-        if: github.event_name != 'pull_request'
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
