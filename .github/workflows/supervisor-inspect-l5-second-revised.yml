@@ -1,0 +1,128 @@
+name: Supervisor inspect L5 second revised pages 08-24
+
+on:
+  push:
+    branches:
+      - 'supervisor/l5-review-second-revised-08-24'
+    paths:
+      - '.github/workflows/supervisor-inspect-l5-second-revised.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libreoffice poppler-utils fonts-noto-cjk
+          python -m pip install --upgrade pip
+          python -m pip install pymupdf python-pptx pillow
+      - name: Download original lecture PDF
+        run: |
+          curl -L --fail --retry 3 'https://courses.grainger.illinois.edu/ece340/sp2020/Dallesasse_Slides/ECE340_L5_S18_Posted.pdf' -o /tmp/original.pdf
+      - name: Render and inspect
+        run: |
+          mkdir -p /tmp/rendered /tmp/pages l5/supervisor_second_artifacts
+          libreoffice --headless --convert-to pdf --outdir /tmp/rendered 'l5/ECE340_L5_S18_Posted_中文忠实重建_二次返修版_第8-24页.pptx'
+          python - <<'PY'
+          from pathlib import Path
+          import fitz, re
+          from pptx import Presentation
+          from PIL import Image, ImageOps, ImageDraw
+
+          ppt=Path('l5/ECE340_L5_S18_Posted_中文忠实重建_二次返修版_第8-24页.pptx')
+          revpdf=next(Path('/tmp/rendered').glob('*.pdf'))
+          orig=fitz.open('/tmp/original.pdf')
+          rev=fitz.open(revpdf)
+          prs=Presentation(ppt)
+
+          # text + notes report
+          sections=[]
+          for p in range(8,25):
+              s=prs.slides[p-1]
+              note=s.notes_slide.notes_text_frame.text or ''
+              main=note.split('[Sources]')[0]
+              han=len(re.findall(r'[\u4e00-\u9fff]',main))
+              texts=[]
+              for sh in s.shapes:
+                  if getattr(sh,'has_text_frame',False):
+                      t=sh.text.strip()
+                      if t:
+                          texts.append(t)
+              sections.append(f'## Slide {p}\n\n**Han chars before [Sources]: {han}**\n\n### Visible slide text\n\n'+'\n\n'.join(texts)+'\n\n### Notes\n\n'+note)
+          Path('l5/supervisor_second_artifacts/L5_second_slide_text_and_notes_08_24.md').write_text('\n\n---\n\n'.join(sections),encoding='utf-8')
+
+          # layout report with pictures/text boxes/tables and suspicious overlaps
+          W=prs.slide_width/914400; H=prs.slide_height/914400
+          lines=[f'# L5 second revised shape/layout report\n\nSlide size: {W:.2f} × {H:.2f} in\n']
+          def box(sh): return (sh.left/914400,sh.top/914400,sh.width/914400,sh.height/914400)
+          def inter(a,b):
+              ax,ay,aw,ah=a; bx,by,bw,bh=b
+              x=max(ax,bx); y=max(ay,by); r=min(ax+aw,bx+bw); bot=min(ay+ah,by+bh)
+              return max(0,r-x)*max(0,bot-y)
+          for p in range(8,25):
+              s=prs.slides[p-1]
+              note=s.notes_slide.notes_text_frame.text or ''
+              han=len(re.findall(r'[\u4e00-\u9fff]',note.split('[Sources]')[0]))
+              lines.append(f'\n## Slide {p}\n\n- Notes Han chars: {han}')
+              arr=[]
+              for i,sh in enumerate(s.shapes):
+                  b=box(sh); txt=''
+                  if getattr(sh,'has_text_frame',False): txt=' '.join((sh.text or '').split())
+                  typ=str(sh.shape_type)
+                  extra=''
+                  if typ.startswith('PICTURE'):
+                      try: extra=f'; image_px={sh.image.size[0]}x{sh.image.size[1]}; image_ext={sh.image.ext}'
+                      except: pass
+                  lines.append(f"- shape {i}: type={typ}; box=({b[0]:.2f},{b[1]:.2f},{b[2]:.2f},{b[3]:.2f}); text='{txt[:220]}'{extra}")
+                  arr.append((i,b,txt,typ))
+              for ai in range(len(arr)):
+                  for bi in range(ai+1,len(arr)):
+                      i,a,ta,tya=arr[ai]; j,b,tb,tyb=arr[bi]
+                      A=a[2]*a[3]; B=b[2]*b[3]; iv=inter(a,b)
+                      if iv and min(A,B)>0 and iv/min(A,B)>=0.35:
+                          # ignore decorative title bars overlapping title text
+                          if i in (0,1) or j in (0,1): continue
+                          lines.append(f"  - OVERLAP: shape {i} vs {j}; ratio/min={iv/min(A,B):.2f}; A='{ta[:80]}'; B='{tb[:80]}'")
+          Path('l5/supervisor_second_artifacts/L5_second_shape_layout_report_08_24.md').write_text('\n'.join(lines),encoding='utf-8')
+
+          # Render side-by-side pages into three high-res contact sheets
+          def page_img(doc, idx, width=800):
+              page=doc[idx]
+              pix=page.get_pixmap(matrix=fitz.Matrix(2,2), alpha=False)
+              im=Image.frombytes('RGB',[pix.width,pix.height],pix.samples)
+              ratio=width/im.width
+              return im.resize((width,int(im.height*ratio)))
+          groups=[range(8,14),range(14,20),range(20,25)]
+          for gi,g in enumerate(groups,1):
+              rows=[]
+              for p in g:
+                  L=page_img(orig,p-1); R=page_img(rev,p-1)
+                  h=max(L.height,R.height)
+                  row=Image.new('RGB',(L.width+R.width,h+42),'white')
+                  row.paste(L,(0,42)); row.paste(R,(L.width,42))
+                  d=ImageDraw.Draw(row)
+                  d.text((12,12),f'Original {p}',fill='black')
+                  d.text((L.width+12,12),f'Second revised {p}',fill='black')
+                  rows.append(row)
+              sheet=Image.new('RGB',(max(r.width for r in rows),sum(r.height for r in rows)),'white')
+              y=0
+              for r in rows:
+                  sheet.paste(r,(0,y)); y+=r.height
+              sheet.save(f'l5/supervisor_second_artifacts/L5_second_compare_{gi}.png',optimize=True)
+          PY
+      - name: Commit supervisor artifacts
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- l5/supervisor_second_artifacts/L5_second_slide_text_and_notes_08_24.md l5/supervisor_second_artifacts/L5_second_shape_layout_report_08_24.md l5/supervisor_second_artifacts/L5_second_compare_1.png l5/supervisor_second_artifacts/L5_second_compare_2.png l5/supervisor_second_artifacts/L5_second_compare_3.png
+          if git diff --cached --quiet; then
+            echo 'No changes.'
+          else
+            git commit -m 'Add supervisor inspection artifacts for L5 second revision'
+            git push
+          fi
