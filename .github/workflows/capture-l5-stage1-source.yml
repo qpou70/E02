@@ -1,0 +1,56 @@
+name: Capture ECE340 L5 strict stage1 source pages
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [l5-stage1-strict-rework]
+    paths:
+      - '.github/workflows/capture-l5-stage1-source.yml'
+      - 'l5/FORCE_L5_STAGE1_SOURCE_CAPTURE.txt'
+
+permissions:
+  contents: write
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: l5-stage1-strict-rework
+      - name: Install source-render dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y poppler-utils
+          python -m pip install --upgrade pip
+          python -m pip install pymupdf pillow
+      - name: Download authoritative lecture PDF and capture target pages
+        run: |
+          mkdir -p l5/stage1_source_reference
+          curl -L --fail --retry 3 \
+            'https://courses.grainger.illinois.edu/ece340/sp2020/Dallesasse_Slides/ECE340_L5_S18_Posted.pdf' \
+            -o l5/stage1_source_reference/ECE340_L5_S18_Posted.pdf
+          python - <<'PY'
+          from pathlib import Path
+          import fitz
+          src=Path('l5/stage1_source_reference/ECE340_L5_S18_Posted.pdf')
+          doc=fitz.open(src)
+          assert doc.page_count == 52, doc.page_count
+          targets=[9,12,18,20,23]
+          for p in targets:
+              page=doc[p-1]
+              pix=page.get_pixmap(matrix=fitz.Matrix(2.5,2.5), alpha=False)
+              pix.save(f'l5/stage1_source_reference/original_pdf_page_{p:02d}.png')
+              Path(f'l5/stage1_source_reference/original_pdf_page_{p:02d}.txt').write_text(page.get_text('text'), encoding='utf-8')
+          PY
+      - name: Commit source reference files
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- l5/stage1_source_reference
+          if git diff --cached --quiet; then
+            echo 'No source reference changes.'
+          else
+            git commit -m 'Capture original ECE340 L5 stage1 source pages'
+            git push origin HEAD:l5-stage1-strict-rework
+          fi
