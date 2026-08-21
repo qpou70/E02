@@ -25,15 +25,25 @@ jobs:
           test -f l5/stage1_visual_review_08_24/rendered/page_18.png
           test -f l5/stage1_visual_review_08_24/rendered/page_20.png
           test -f l5/stage1_visual_review_08_24/rendered/page_23.png
+          test -f l5/stage1_visual_review_08_24/comparison/page_09_original_pdf_vs_new.jpg
+          test -f l5/stage1_visual_review_08_24/comparison/page_12_original_pdf_vs_new.jpg
+          test -f l5/stage1_visual_review_08_24/comparison/page_18_original_pdf_vs_new.jpg
+          test -f l5/stage1_visual_review_08_24/comparison/page_20_original_pdf_vs_new.jpg
+          test -f l5/stage1_visual_review_08_24/comparison/page_23_original_pdf_vs_new.jpg
           test -f l5/stage1_visual_review_08_24/contact_sheet_stage1_pages_09_12_18_20_23.jpg
       - uses: actions/upload-artifact@v4
         with:
-          name: l5-stage1-visual-review
+          name: l5-stage1-visual-review-full
           path: |
             l5/stage1_visual_review_08_24/rendered/page_09.png
             l5/stage1_visual_review_08_24/rendered/page_12.png
             l5/stage1_visual_review_08_24/rendered/page_18.png
             l5/stage1_visual_review_08_24/rendered/page_20.png
             l5/stage1_visual_review_08_24/rendered/page_23.png
+            l5/stage1_visual_review_08_24/comparison/page_09_original_pdf_vs_new.jpg
+            l5/stage1_visual_review_08_24/comparison/page_12_original_pdf_vs_new.jpg
+            l5/stage1_visual_review_08_24/comparison/page_18_original_pdf_vs_new.jpg
+            l5/stage1_visual_review_08_24/comparison/page_20_original_pdf_vs_new.jpg
+            l5/stage1_visual_review_08_24/comparison/page_23_original_pdf_vs_new.jpg
             l5/stage1_visual_review_08_24/contact_sheet_stage1_pages_09_12_18_20_23.jpg
-          retention-days: 7
+          retention-days: 1
