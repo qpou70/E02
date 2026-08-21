@@ -1,108 +1,74 @@
-name: Build ECE340 L5 revised Chinese PPT pages 08-24
+name: Supervisor inspect ECE340 L5 revised pages 08-24
 
 on:
-  workflow_dispatch:
   push:
-    branches: [master]
+    branches:
+      - 'supervisor/l5-review-revised-08-24'
     paths:
       - '.github/workflows/build-l5-ppt.yml'
-      - 'l5/generator.part*'
 
 permissions:
   contents: write
 
 jobs:
-  build:
+  inspect:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libreoffice poppler-utils fonts-noto-cjk fonts-dejavu-core
+          sudo apt-get install -y libreoffice poppler-utils fonts-noto-cjk
           python -m pip install --upgrade pip
-          python -m pip install pymupdf pillow matplotlib
-          npm install pptxgenjs
-
-      - name: Reconstruct revised generator
-        run: |
-          cat l5/generator.part* | base64 -d | gzip -d > l5/refine_generate_l5.js
-          node --check l5/refine_generate_l5.js
-
+          python -m pip install pymupdf python-pptx
       - name: Download original lecture PDF
         run: |
-          curl -L --fail --retry 3 \
-            'https://courses.grainger.illinois.edu/ece340/sp2020/Dallesasse_Slides/ECE340_L5_S18_Posted.pdf' \
-            -o l5/ECE340_L5_S18_Posted.pdf
-
-      - name: Generate revised PowerPoint in repository
-        working-directory: l5
-        run: node refine_generate_l5.js
-
-      - name: Validate revised PPT and export
+          curl -L --fail --retry 3 'https://courses.grainger.illinois.edu/ece340/sp2020/Dallesasse_Slides/ECE340_L5_S18_Posted.pdf' -o /tmp/original.pdf
+      - name: Render revised deck and prepare supervisor artifacts
         run: |
-          mkdir -p l5/rendered
-          libreoffice --headless --convert-to pdf --outdir l5/rendered \
-            'l5/ECE340_L5_S18_Posted_中文忠实重建_返修版_第8-24页.pptx'
+          mkdir -p /tmp/rendered l5/supervisor_artifacts
+          libreoffice --headless --convert-to pdf --outdir /tmp/rendered 'l5/ECE340_L5_S18_Posted_中文忠实重建_返修版_第8-24页.pptx'
           python - <<'PY'
           from pathlib import Path
-          import re
-          import zipfile
-          import hashlib
-          import fitz
+          import fitz, re
+          from pptx import Presentation
 
-          ppt = Path('l5/ECE340_L5_S18_Posted_中文忠实重建_返修版_第8-24页.pptx')
-          pdf = Path('l5/rendered/ECE340_L5_S18_Posted_中文忠实重建_返修版_第8-24页.pdf')
-          assert ppt.exists(), ppt
+          original = fitz.open('/tmp/original.pdf')
+          revised_pdf = next(Path('/tmp/rendered').glob('*.pdf'))
+          revised = fitz.open(revised_pdf)
+          out = fitz.open()
+          for p in range(8,25):
+              page = out.new_page(width=1684, height=595)
+              page.insert_text((20,20), f'Original PDF page {p}', fontsize=11)
+              page.insert_text((862,20), f'Revised PPT slide {p}', fontsize=11)
+              page.show_pdf_page(fitz.Rect(0,28,842,595), original, p-1, keep_proportion=True)
+              page.show_pdf_page(fitz.Rect(842,28,1684,595), revised, p-1, keep_proportion=True)
+          out.save('l5/supervisor_artifacts/L5_revised_compare_pages_08_24.pdf', garbage=4, deflate=True)
 
-          with zipfile.ZipFile(ppt) as z:
-              slides = [n for n in z.namelist() if n.startswith('ppt/slides/slide') and n.endswith('.xml')]
-              notes = [n for n in z.namelist() if n.startswith('ppt/notesSlides/notesSlide') and n.endswith('.xml')]
-              assert len(slides) == 52, len(slides)
-              assert len(notes) >= 52, len(notes)
-
-              banned = ['教师应当', '讲解时应', '课堂互动建议', '本页教学目的', '教师需要', '建议提问']
-              bad = []
-              for p in range(8, 25):
-                  xml = z.read(f'ppt/notesSlides/notesSlide{p}.xml').decode('utf-8', 'ignore')
-                  text = re.sub('<[^>]+>', '', xml)
-                  if '[Sources]' not in text:
-                      bad.append((p, 'missing sources'))
-                  for phrase in banned:
-                      if phrase in text:
-                          bad.append((p, 'banned', phrase))
-              assert not bad, bad
-
-          doc = fitz.open(pdf)
-          assert doc.page_count == 52, doc.page_count
-          digest = hashlib.sha256(ppt.read_bytes()).hexdigest()
-
-          report_lines = [
-              '# ECE340 L5 revised build report',
-              '',
-              '- Generated inside GitHub Actions: yes',
-              '- Source PDF pages: 52',
-              '- Revised range: original PDF pages 8–24',
-              '- PPT slides: 52',
-              '- Pages 8–24 notes include [Sources]: checked',
-              f'- LibreOffice PDF render pages: {doc.page_count}',
-              '- Workflow validation: passed',
-              '- Microsoft PowerPoint actual open check: not performed in GitHub Linux runner',
-              f'- Final revised PPT SHA-256: `{digest}`',
-              '',
-          ]
-          Path('l5/BUILD_REPORT_08_24_REVISED.md').write_text('\n'.join(report_lines), encoding='utf-8')
+          prs = Presentation('l5/ECE340_L5_S18_Posted_中文忠实重建_返修版_第8-24页.pptx')
+          rows=[]
+          for p in range(8,25):
+              slide=prs.slides[p-1]
+              note=slide.notes_slide.notes_text_frame.text or ''
+              main=note.split('[Sources]')[0]
+              han=len(re.findall(r'[\u4e00-\u9fff]',main))
+              texts=[]
+              for sh in slide.shapes:
+                  if getattr(sh,'has_text_frame',False):
+                      t=sh.text.strip()
+                      if t:
+                          texts.append(t)
+              rows.append(f'## Slide {p}\n\n**Han chars before [Sources]: {han}**\n\n### Visible slide text\n\n' + '\n\n'.join(texts) + '\n\n### Notes\n\n' + note)
+          Path('l5/supervisor_artifacts/L5_revised_slide_text_and_notes_08_24.md').write_text('\n\n---\n\n'.join(rows),encoding='utf-8')
           PY
-
-      - name: Commit revised PPT and report
+      - name: Commit supervisor artifacts
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add 'l5/ECE340_L5_S18_Posted_中文忠实重建_返修版_第8-24页.pptx' l5/BUILD_REPORT_08_24_REVISED.md
+          git add -- l5/supervisor_artifacts/L5_revised_compare_pages_08_24.pdf l5/supervisor_artifacts/L5_revised_slide_text_and_notes_08_24.md
           if git diff --cached --quiet; then
-            echo 'No generated changes.'
+            echo 'No supervisor artifact changes.'
           else
-            git commit -m 'Regenerate revised ECE340 L5 Chinese deck pages 8-24'
+            git commit -m 'Add supervisor artifacts for revised L5 deck'
             git push
           fi
