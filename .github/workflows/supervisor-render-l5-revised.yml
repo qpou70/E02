@@ -1,0 +1,71 @@
+name: Supervisor render L5 revised pages 08-24
+
+on:
+  push:
+    branches:
+      - 'supervisor/l5-review-revised-08-24'
+    paths:
+      - '.github/workflows/supervisor-render-l5-revised.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install render tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libreoffice poppler-utils fonts-noto-cjk
+          python -m pip install --upgrade pip
+          python -m pip install pymupdf python-pptx
+      - name: Download original source PDF
+        run: |
+          curl -L --fail --retry 3 'https://courses.grainger.illinois.edu/ece340/sp2020/Dallesasse_Slides/ECE340_L5_S18_Posted.pdf' -o /tmp/original.pdf
+      - name: Render revised PPT and build comparison PDF
+        run: |
+          mkdir -p l5/supervisor_artifacts /tmp/rendered
+          libreoffice --headless --convert-to pdf --outdir /tmp/rendered 'l5/ECE340_L5_S18_Posted_中文忠实重建_返修版_第8-24页.pptx'
+          python - <<'PY'
+          from pathlib import Path
+          import fitz, re
+          from pptx import Presentation
+
+          orig=fitz.open('/tmp/original.pdf')
+          rev_path=next(Path('/tmp/rendered').glob('*.pdf'))
+          rev=fitz.open(rev_path)
+          out=fitz.open()
+          # side-by-side, original left and revised right; source/revised labels included
+          for p in range(8,25):
+              page=out.new_page(width=1684, height=595)
+              page.insert_text((20,22), f'Original PDF page {p}', fontsize=12)
+              page.insert_text((862,22), f'Revised PPT slide {p}', fontsize=12)
+              left=fitz.Rect(0,30,842,595)
+              right=fitz.Rect(842,30,1684,595)
+              page.show_pdf_page(left, orig, p-1, keep_proportion=True)
+              page.show_pdf_page(right, rev, p-1, keep_proportion=True)
+          out.save('l5/supervisor_artifacts/L5_revised_compare_pages_08_24.pdf', garbage=4, deflate=True)
+
+          prs=Presentation('l5/ECE340_L5_S18_Posted_中文忠实重建_返修版_第8-24页.pptx')
+          rows=[]
+          for p in range(8,25):
+              s=prs.slides[p-1]
+              note=s.notes_slide.notes_text_frame.text or ''
+              main=note.split('[Sources]')[0]
+              han=len(re.findall(r'[\u4e00-\u9fff]',main))
+              rows.append(f'## Slide {p}\nHan chars before [Sources]: {han}\n\n{note}\n')
+          Path('l5/supervisor_artifacts/L5_revised_notes_08_24.md').write_text('\n\n'.join(rows),encoding='utf-8')
+          PY
+      - name: Commit supervisor artifacts
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- l5/supervisor_artifacts/L5_revised_compare_pages_08_24.pdf l5/supervisor_artifacts/L5_revised_notes_08_24.md
+          if git diff --cached --quiet; then
+            echo 'No artifact changes.'
+          else
+            git commit -m 'Add supervisor render for L5 revised pages 8-24'
+            git push
+          fi
