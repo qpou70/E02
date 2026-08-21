@@ -5,6 +5,10 @@ on:
     branches: [master]
     paths:
       - '.github/workflows/package-l5-stage1-visual-review.yml'
+  push:
+    branches: [l5-stage1-strict-rework]
+    paths:
+      - 'l5/FORCE_L5_STAGE1_PACKAGE.txt'
   workflow_dispatch:
 
 jobs:
