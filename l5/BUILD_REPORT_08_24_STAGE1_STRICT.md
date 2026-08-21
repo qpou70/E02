@@ -19,7 +19,7 @@
 - 非目标页 slide XML：与基准逐页 byte-for-byte 相同。
 - Worker self-check: passed.
 - Supervisor visual acceptance: pending.
-- PPT SHA-256（渲染前）：`24384a17f53b87a0734156ae39fb936ab5621969d7a2f47b720893463ba8a735`
+- PPT SHA-256（渲染前）：`3e877af91cbdb7bbdcd82975e27bde2e0ba180479e9ce82f4ffd345102255fed`
 
 ## 渲染与证据
 
@@ -31,4 +31,4 @@
 - 图片均按原始纵横比 contain/等比缩放，脚本未做非等比拉伸。
 - Worker self-check: passed.
 - Supervisor visual acceptance: pending.
-- PPT SHA-256（渲染后）：`24384a17f53b87a0734156ae39fb936ab5621969d7a2f47b720893463ba8a735`
+- PPT SHA-256（渲染后）：`3e877af91cbdb7bbdcd82975e27bde2e0ba180479e9ce82f4ffd345102255fed`
