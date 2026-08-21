@@ -20,11 +20,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libreoffice poppler-utils fonts-noto-cjk
           python -m pip install --upgrade pip
-          python -m pip install pymupdf python-pptx
+          python -m pip install pymupdf python-pptx pillow
       - name: Download original source PDF
         run: |
           curl -L --fail --retry 3 'https://courses.grainger.illinois.edu/ece340/sp2020/Dallesasse_Slides/ECE340_L5_S18_Posted.pdf' -o /tmp/original.pdf
-      - name: Render revised PPT and build comparison PDF
+      - name: Render revised PPT and build inspection reports
         run: |
           mkdir -p l5/supervisor_artifacts /tmp/rendered
           libreoffice --headless --convert-to pdf --outdir /tmp/rendered 'l5/ECE340_L5_S18_Posted_中文忠实重建_返修版_第8-24页.pptx'
@@ -32,40 +32,86 @@ jobs:
           from pathlib import Path
           import fitz, re
           from pptx import Presentation
+          from pptx.enum.shapes import MSO_SHAPE_TYPE
 
           orig=fitz.open('/tmp/original.pdf')
           rev_path=next(Path('/tmp/rendered').glob('*.pdf'))
           rev=fitz.open(rev_path)
+
+          # Side-by-side render for archival review.
           out=fitz.open()
-          # side-by-side, original left and revised right; source/revised labels included
           for p in range(8,25):
               page=out.new_page(width=1684, height=595)
               page.insert_text((20,22), f'Original PDF page {p}', fontsize=12)
               page.insert_text((862,22), f'Revised PPT slide {p}', fontsize=12)
-              left=fitz.Rect(0,30,842,595)
-              right=fitz.Rect(842,30,1684,595)
-              page.show_pdf_page(left, orig, p-1, keep_proportion=True)
-              page.show_pdf_page(right, rev, p-1, keep_proportion=True)
+              page.show_pdf_page(fitz.Rect(0,30,842,595), orig, p-1, keep_proportion=True)
+              page.show_pdf_page(fitz.Rect(842,30,1684,595), rev, p-1, keep_proportion=True)
           out.save('l5/supervisor_artifacts/L5_revised_compare_pages_08_24.pdf', garbage=4, deflate=True)
 
           prs=Presentation('l5/ECE340_L5_S18_Posted_中文忠实重建_返修版_第8-24页.pptx')
-          rows=[]
+          slide_w=prs.slide_width/914400
+          slide_h=prs.slide_height/914400
+          notes_rows=[]
+          report=[]
+          report.append(f'# L5 revised shape/layout report\n\nSlide size: {slide_w:.2f} × {slide_h:.2f} in\n')
+
           for p in range(8,25):
               s=prs.slides[p-1]
               note=s.notes_slide.notes_text_frame.text or ''
               main=note.split('[Sources]')[0]
               han=len(re.findall(r'[\u4e00-\u9fff]',main))
-              rows.append(f'## Slide {p}\nHan chars before [Sources]: {han}\n\n{note}\n')
-          Path('l5/supervisor_artifacts/L5_revised_notes_08_24.md').write_text('\n\n'.join(rows),encoding='utf-8')
+              notes_rows.append(f'## Slide {p}\nHan chars before [Sources]: {han}\n\n{note}\n')
+              report.append(f'\n## Slide {p}\n')
+              report.append(f'- Notes Han chars: {han}')
+              boxes=[]
+              for i,sh in enumerate(s.shapes):
+                  x,y,w,h=[v/914400 for v in (sh.left,sh.top,sh.width,sh.height)]
+                  typ=str(sh.shape_type)
+                  text=''
+                  if getattr(sh,'has_text_frame',False):
+                      text=' '.join(sh.text.split())
+                  extra=''
+                  if sh.shape_type == MSO_SHAPE_TYPE.PICTURE:
+                      try:
+                          im=sh.image
+                          extra=f'; image_px={im.size[0]}x{im.size[1]}; image_ext={im.ext}'
+                      except Exception:
+                          pass
+                  report.append(f'- shape {i}: type={typ}; box=({x:.2f},{y:.2f},{w:.2f},{h:.2f}){extra}; text={text!r}')
+                  boxes.append((i,x,y,w,h,text,typ))
+              # overlap diagnostics
+              for a in range(len(boxes)):
+                  ia,xa,ya,wa,ha,ta,tya=boxes[a]
+                  area_a=wa*ha
+                  if area_a < 0.05: continue
+                  for b in range(a+1,len(boxes)):
+                      ib,xb,yb,wb,hb,tb,tyb=boxes[b]
+                      area_b=wb*hb
+                      if area_b < 0.05: continue
+                      ix=max(0,min(xa+wa,xb+wb)-max(xa,xb))
+                      iy=max(0,min(ya+ha,yb+hb)-max(ya,yb))
+                      inter=ix*iy
+                      if inter<=0: continue
+                      ratio=inter/min(area_a,area_b)
+                      # report only substantial overlaps involving text or pictures
+                      if ratio>=0.35 and (ta or tb or 'PICTURE' in tya.upper() or 'PICTURE' in tyb.upper()):
+                          report.append(f'  - OVERLAP: shape {ia} vs {ib}; ratio/min={ratio:.2f}; A={ta[:60]!r}; B={tb[:60]!r}')
+              # compare extracted render text counts (does not include rasterized labels)
+              rt=' '.join(rev[p-1].get_text().split())
+              ot=' '.join(orig[p-1].get_text().split())
+              report.append(f'- Rendered revised text chars (PDF-extractable): {len(rt)}')
+              report.append(f'- Original PDF extractable text chars: {len(ot)}')
+          Path('l5/supervisor_artifacts/L5_revised_notes_08_24.md').write_text('\n\n'.join(notes_rows),encoding='utf-8')
+          Path('l5/supervisor_artifacts/L5_shape_layout_report_08_24.md').write_text('\n'.join(report),encoding='utf-8')
           PY
       - name: Commit supervisor artifacts
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -- l5/supervisor_artifacts/L5_revised_compare_pages_08_24.pdf l5/supervisor_artifacts/L5_revised_notes_08_24.md
+          git add -- l5/supervisor_artifacts/L5_revised_compare_pages_08_24.pdf l5/supervisor_artifacts/L5_revised_notes_08_24.md l5/supervisor_artifacts/L5_shape_layout_report_08_24.md
           if git diff --cached --quiet; then
             echo 'No artifact changes.'
           else
-            git commit -m 'Add supervisor render for L5 revised pages 8-24'
+            git commit -m 'Add L5 shape and layout inspection report'
             git push
           fi
