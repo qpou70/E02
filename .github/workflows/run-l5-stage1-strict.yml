@@ -8,6 +8,7 @@ on:
       - '.github/workflows/run-l5-stage1-strict.yml'
       - 'l5/stage1_strict_builder_v2.py'
       - 'l5/stage1_strict_patch_v3.py'
+      - 'l5/stage1_page12_angle_patch.py'
       - 'l5/stage1_strict_evidence.py'
       - 'l5/FORCE_L5_STAGE1_STRICT_RUN.txt'
   pull_request:
@@ -16,6 +17,7 @@ on:
       - '.github/workflows/run-l5-stage1-strict.yml'
       - 'l5/stage1_strict_builder_v2.py'
       - 'l5/stage1_strict_patch_v3.py'
+      - 'l5/stage1_page12_angle_patch.py'
       - 'l5/stage1_strict_evidence.py'
       - 'l5/FORCE_L5_STAGE1_STRICT_RUN.txt'
 
@@ -36,7 +38,9 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install python-pptx pymupdf pillow lxml
       - name: Apply visual inspection fixes
-        run: python l5/stage1_strict_patch_v3.py
+        run: |
+          python l5/stage1_strict_patch_v3.py
+          python l5/stage1_page12_angle_patch.py
       - name: Build stage1 PPT and validate frozen pages
         run: python l5/stage1_strict_builder_v3_runtime.py
       - name: Render baseline and stage1 deck
