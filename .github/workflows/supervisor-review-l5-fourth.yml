@@ -1,0 +1,120 @@
+name: Supervisor review L5 fourth revised pages 08-24
+
+on:
+  push:
+    branches:
+      - 'supervisor/l5-review-fourth-revised-08-24'
+    paths:
+      - '.github/workflows/supervisor-review-l5-fourth.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libreoffice fonts-noto-cjk fonts-dejavu-core
+          python -m pip install --upgrade pip
+          python -m pip install pymupdf python-pptx pillow
+      - name: Download original PDF
+        run: |
+          curl -L --fail --retry 3 'https://courses.grainger.illinois.edu/ece340/sp2020/Dallesasse_Slides/ECE340_L5_S18_Posted.pdf' -o /tmp/original.pdf
+      - name: Render and inspect
+        run: |
+          mkdir -p /tmp/rendered l5/supervisor_fourth_artifacts
+          libreoffice --headless --convert-to pdf --outdir /tmp/rendered \
+            'l5/ECE340_L5_S18_Posted_中文忠实重建_四次返修版_第8-24页.pptx'
+          python - <<'PY'
+          from pathlib import Path
+          import fitz, zipfile, re
+          from pptx import Presentation
+
+          ppt4 = Path('l5/ECE340_L5_S18_Posted_中文忠实重建_四次返修版_第8-24页.pptx')
+          ppt3 = Path('l5/ECE340_L5_S18_Posted_中文忠实重建_三次返修版_第8-24页.pptx')
+          revpdf = Path('/tmp/rendered/ECE340_L5_S18_Posted_中文忠实重建_四次返修版_第8-24页.pdf')
+          orig = fitz.open('/tmp/original.pdf')
+          rev = fitz.open(revpdf)
+
+          # Side-by-side original page 9 and revised slide 9 at high resolution.
+          w, h = 2000, 760
+          out = fitz.open()
+          pg = out.new_page(width=w, height=h)
+          pg.insert_text((20,24), 'Original PDF page 9', fontsize=14)
+          pg.insert_text((1020,24), 'Fourth revised PPT slide 9', fontsize=14)
+          pg.show_pdf_page(fitz.Rect(0,36,1000,h), orig, 8, keep_proportion=True)
+          pg.show_pdf_page(fitz.Rect(1000,36,2000,h), rev, 8, keep_proportion=True)
+          pix = pg.get_pixmap(matrix=fitz.Matrix(1.6,1.6), alpha=False)
+          pix.save('l5/supervisor_fourth_artifacts/L5_fourth_compare_slide9.png')
+
+          prs = Presentation(ppt4)
+          s = prs.slides[8]
+          EMU = 914400
+          rows = ['# Slide 9 fourth revised inspection', '']
+          rows.append(f'Slide size: {prs.slide_width/EMU:.2f} x {prs.slide_height/EMU:.2f} in')
+          rows.append('')
+          texts=[]
+          shapes=[]
+          for i,sh in enumerate(s.shapes):
+              t = sh.text.strip().replace('\n',' | ') if getattr(sh,'has_text_frame',False) and sh.text.strip() else ''
+              x,y,w0,h0 = sh.left/EMU, sh.top/EMU, sh.width/EMU, sh.height/EMU
+              shapes.append((i,x,y,w0,h0,t,sh.shape_type))
+              if t: texts.append(t)
+              rows.append(f"- shape {i}: type={sh.shape_type}; box=({x:.2f},{y:.2f},{w0:.2f},{h0:.2f}); text={t!r}")
+          joined='\n'.join(texts)
+          rows += ['', '## Required-content checks', '']
+          banned_old=['关键标签中英对应','Wafers 晶圆','承载/加热基座','Pedestal 支撑台','• Vent 排气口']
+          for b in banned_old:
+              rows.append(f"- old text absent [{b}]: {b not in joined}")
+          for req in ['气体入口','挡流板','石英反应腔','硅片','基座盘','支座','排气口','射频源','SiCl₄ + 2H₂ ⇌ Si + 4HCl','SiH₄ → Si + 2H₂']:
+              rows.append(f"- required present [{req}]: {req in joined}")
+
+          rows += ['', '## Text-text geometric overlaps', '']
+          overlaps=[]
+          def inter(a,b):
+              _,ax,ay,aw,ah,at,_=a; _,bx,by,bw,bh,bt,_=b
+              ix=max(0,min(ax+aw,bx+bw)-max(ax,bx)); iy=max(0,min(ay+ah,by+bh)-max(ay,by))
+              area=ix*iy
+              if area<=0: return 0
+              return area/min(aw*ah,bw*bh)
+          text_shapes=[q for q in shapes if q[5]]
+          for ii,a in enumerate(text_shapes):
+              for b in text_shapes[ii+1:]:
+                  r=inter(a,b)
+                  if r>0.20:
+                      overlaps.append((a[0],b[0],r,a[5],b[5]))
+          if overlaps:
+              for a,b,r,ta,tb in overlaps:
+                  rows.append(f"- overlap shape {a} vs {b}: ratio/min={r:.2f}; A={ta!r}; B={tb!r}")
+          else:
+              rows.append('- none >20%')
+
+          note = s.notes_slide.notes_text_frame.text or ''
+          rows += ['', '## Notes', '', note]
+
+          # Verify only slide 9 XML differs between third and fourth revised decks in pages 8-24.
+          rows += ['', '## XML freeze check', '']
+          with zipfile.ZipFile(ppt3) as z3, zipfile.ZipFile(ppt4) as z4:
+              for p in range(8,25):
+                  a=z3.read(f'ppt/slides/slide{p}.xml'); b=z4.read(f'ppt/slides/slide{p}.xml')
+                  same=(a==b)
+                  rows.append(f'- slide {p}: same={same}')
+                  if p==9: assert not same
+                  else: assert same
+          Path('l5/supervisor_fourth_artifacts/L5_fourth_slide9_report.md').write_text('\n'.join(rows),encoding='utf-8')
+          PY
+      - name: Commit review artifacts
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add l5/supervisor_fourth_artifacts/L5_fourth_compare_slide9.png l5/supervisor_fourth_artifacts/L5_fourth_slide9_report.md
+          if git diff --cached --quiet; then
+            echo 'No review artifact changes.'
+          else
+            git commit -m 'Add supervisor artifacts for fourth revised L5 deck'
+            git push
+          fi
