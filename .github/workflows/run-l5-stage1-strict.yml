@@ -61,6 +61,6 @@ jobs:
             echo 'No generated changes.'
           else
             git commit -m 'Apply supervisor Stage 1 fixes on pages 12 and 23'
-            git pull --rebase origin l5-stage1-strict-rework
-            git push origin HEAD:l5-stage1-strict-rework
+            git fetch origin l5-stage1-strict-rework
+            git push --force-with-lease origin HEAD:l5-stage1-strict-rework
           fi
