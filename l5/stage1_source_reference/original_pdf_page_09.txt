@@ -1,0 +1,6 @@
+Silicon VPE 
+9 
+http://www.hitachi-kokusai.co.jp/global/products/semicon/batch/epi.html 
+VPE Methods
+   Chloride:  SiCl4 + 2H2  Si + 4HCl
+   Silane Pyrolysis:  SiH4 → Si + 2H2

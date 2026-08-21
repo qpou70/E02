@@ -1,0 +1,13 @@
+Bonding and Antibonding Orbitals in Hydrogen (The 
+Simplest Bandgap) 
+Electron located between hydrogen atoms 
+Electron not located between hydrogen atoms 
+23 
+Elemental Hydrogen: 1s1 
+Hydrogen #1: 2 states, 1 electron 
+Hydrogen #2: 2 states, 1 electron 
+H2: 4 states, 2 electrons 
+http://chemwiki.ucdavis.edu/Theoretical_Chemistry/
+Chemical_Bonding/Molecular_Orbital_Theory 
+Higher Energy 
+Lower Energy 

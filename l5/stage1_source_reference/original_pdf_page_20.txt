@@ -1,0 +1,29 @@
+sp3 Hybridization 
+•  The sp3 hybrids are 
+obtained by adding and 
+subtracting all 
+combination of s and p 
+wavefunctions 
+http://www.ntu.ac.uk/cels/molecular_geometry/hybridization/Sp3_hybridization/index.html 
+109.5° Bond 
+Angle 
+ψ 1 = 1
+2 ψ s +ψ px +ψ py +ψ pz
+(
+)
+ψ 2 = 1
+2 ψ s −ψ px −ψ py +ψ pz
+(
+)
+ψ 3 = 1
+2 ψ s +ψ px −ψ py −ψ pz
+(
+)
+ψ 4 = 1
+2 ψ s −ψ px +ψ py −ψ pz
+(
+)
+Comments: 
+Strain distorts the bond angles 
+Bond angles for ammonia, etc. are slightly smaller 
+20 
