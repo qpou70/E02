@@ -5,7 +5,7 @@ text = runtime.read_text(encoding='utf-8')
 old = 'add_picture_contain(s,micro,5.24,1.02,4.22,5.65)\nnotes(s,'
 new = (
     'add_picture_contain(s,micro,5.24,1.02,4.22,5.65)\n'
-    'textbox(s,8.08,5.20,0.60,0.22,"<100>",8.5,True,WHITE,PP_ALIGN.CENTER,fill=BLACK,line=BLACK,margin=0)\n'
+    'textbox(s,7.38,5.15,0.62,0.24,"<100>",8.5,True,WHITE,PP_ALIGN.CENTER,fill=BLACK,line=BLACK,margin=0)\n'
     'notes(s,'
 )
 count = text.count(old)
