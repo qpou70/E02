@@ -1,0 +1,76 @@
+name: Supervisor visual review L5 fourth revision
+
+on:
+  push:
+    branches:
+      - 'supervisor/l5-visual-review-fourth'
+    paths:
+      - '.github/workflows/supervisor-visual-review-fourth.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libreoffice poppler-utils fonts-noto-cjk
+          python -m pip install --upgrade pip
+          python -m pip install pillow python-pptx
+      - name: Render fourth revision and make compact contact sheet
+        run: |
+          set -e
+          rm -rf l5/supervisor_visual_fourth /tmp/l5vis
+          mkdir -p l5/supervisor_visual_fourth /tmp/l5vis
+          libreoffice --headless --convert-to pdf --outdir /tmp/l5vis 'l5/ECE340_L5_S18_Posted_中文忠实重建_四次返修版_第8-24页.pptx'
+          PDF=$(find /tmp/l5vis -maxdepth 1 -name '*.pdf' | head -1)
+          pdftoppm -f 8 -l 24 -jpeg -r 72 -jpegopt quality=55 "$PDF" /tmp/l5vis/page >/dev/null 2>&1
+          python - <<'PY'
+          from PIL import Image, ImageOps, ImageDraw, ImageFont
+          from pathlib import Path
+          import base64, textwrap, json
+          imgs=sorted(Path('/tmp/l5vis').glob('page-*.jpg'))
+          assert len(imgs)==17, len(imgs)
+          thumb_w, thumb_h = 320, 240
+          label_h=26
+          cols=4; rows=5
+          sheet=Image.new('RGB',(cols*thumb_w,rows*(thumb_h+label_h)),'white')
+          draw=ImageDraw.Draw(sheet)
+          try: font=ImageFont.truetype('/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc',16)
+          except: font=None
+          pages=[]
+          for idx,p in enumerate(imgs):
+              im=Image.open(p).convert('RGB')
+              im.thumbnail((thumb_w,thumb_h))
+              canvas=Image.new('RGB',(thumb_w,thumb_h),'white')
+              x=(thumb_w-im.width)//2; y=(thumb_h-im.height)//2
+              canvas.paste(im,(x,y))
+              col=idx%cols; row=idx//cols
+              sx=col*thumb_w; sy=row*(thumb_h+label_h)
+              sheet.paste(canvas,(sx,sy))
+              page_no=8+idx
+              txt=f'Page {page_no}'
+              draw.text((sx+8,sy+thumb_h+3),txt,fill='black',font=font)
+              pages.append(page_no)
+          out=Path('/tmp/l5vis/contact.webp')
+          sheet.save(out,'WEBP',quality=38,method=6)
+          data=base64.b64encode(out.read_bytes()).decode('ascii')
+          Path('l5/supervisor_visual_fourth/contact_sheet.webp.b64').write_text('\n'.join(textwrap.wrap(data,76)),encoding='ascii')
+          Path('l5/supervisor_visual_fourth/contact_sheet_meta.json').write_text(json.dumps({'pages':pages,'width':sheet.width,'height':sheet.height,'bytes':out.stat().st_size},ensure_ascii=False,indent=2),encoding='utf-8')
+          PY
+      - name: Commit supervisor render
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add l5/supervisor_visual_fourth
+          if git diff --cached --quiet; then
+            echo 'No changes.'
+          else
+            git commit -m 'Add visual contact sheet for L5 fourth revision'
+            git push
+          fi
