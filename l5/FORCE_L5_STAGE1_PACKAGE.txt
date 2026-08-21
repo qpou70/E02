@@ -1,2 +1,2 @@
 Package the latest committed Stage 1 visual review evidence for manual inspection.
-Latest accepted-generation candidate: bee47adfd1e6990ce0877b64e4f144e113215cbe
+Latest accepted-generation candidate: 1110c156241b30373f25d44efc79151e3c4ada58
