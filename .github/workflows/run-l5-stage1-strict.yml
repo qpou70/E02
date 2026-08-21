@@ -1,0 +1,62 @@
+name: Run ECE340 L5 strict stage1 build
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [l5-stage1-strict-rework]
+    paths:
+      - '.github/workflows/run-l5-stage1-strict.yml'
+      - 'l5/stage1_strict_builder.py'
+      - 'l5/stage1_strict_evidence.py'
+      - 'l5/FORCE_L5_STAGE1_STRICT_RUN.txt'
+  pull_request:
+    branches: [master]
+    paths:
+      - '.github/workflows/run-l5-stage1-strict.yml'
+      - 'l5/stage1_strict_builder.py'
+      - 'l5/stage1_strict_evidence.py'
+      - 'l5/FORCE_L5_STAGE1_STRICT_RUN.txt'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: l5-stage1-strict-rework
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libreoffice fonts-noto-cjk fonts-dejavu-core
+          python -m pip install --upgrade pip
+          python -m pip install python-pptx pymupdf pillow lxml
+      - name: Build stage1 PPT and validate frozen pages
+        run: python l5/stage1_strict_builder.py
+      - name: Render baseline and stage1 deck
+        run: |
+          rm -rf l5/stage1_visual_review_08_24
+          mkdir -p l5/stage1_visual_review_08_24/baseline_pdf l5/stage1_visual_review_08_24/new_pdf
+          libreoffice --headless --convert-to pdf --outdir l5/stage1_visual_review_08_24/baseline_pdf \
+            'l5/ECE340_L5_S18_Posted_中文忠实重建_视觉返修版_第8-24页.pptx'
+          libreoffice --headless --convert-to pdf --outdir l5/stage1_visual_review_08_24/new_pdf \
+            'l5/ECE340_L5_S18_Posted_中文忠实重建_第一阶段严格返修_第9_12_18_20_23页.pptx'
+          python l5/stage1_strict_evidence.py
+      - name: Commit candidate outputs
+        if: github.event_name != 'pull_request'
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- \
+            'l5/ECE340_L5_S18_Posted_中文忠实重建_第一阶段严格返修_第9_12_18_20_23页.pptx' \
+            l5/BUILD_REPORT_08_24_STAGE1_STRICT.md \
+            l5/stage1_strict_assets \
+            l5/stage1_visual_review_08_24
+          if git diff --cached --quiet; then
+            echo 'No generated changes.'
+          else
+            git commit -m 'Generate strict L5 stage1 pages 9 12 18 20 23'
+            git push origin HEAD:l5-stage1-strict-rework
+          fi
