@@ -17,6 +17,10 @@ replacements = [
         'p20=render_crop(20,(42,126,754,535),"p20_formula_geometry_source.png",270)',
         'p20=render_crop(20,(42,126,754,doc[19].rect.height),"p20_formula_geometry_source.png",270)'
     ),
+    (
+        '"硅片 / 晶圆","基座（Susceptor）","支座 / Pedestal"',
+        '"硅片 / 晶圆","基座 / Susceptor","支座 / Pedestal"'
+    ),
 ]
 
 for old, new in replacements:
