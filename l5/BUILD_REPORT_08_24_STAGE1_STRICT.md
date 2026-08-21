@@ -4,14 +4,14 @@
 - 原始讲义 PDF：`l5/stage1_source_reference/ECE340_L5_S18_Posted.pdf`
 - 阶段输出 PPT：`l5/ECE340_L5_S18_Posted_中文忠实重建_第一阶段严格返修_第9_12_18_20_23页.pptx`
 - 页面尺寸：10.0 × 7.5 inch（4:3）；所有目标页 shape 均通过版心边界断言。
-- 本轮严格执行监工范围：第 9、18、20 页冻结；定点修复第 12 页 `<100>`；重新完整返修第 23 页。
+- 第二轮严格执行监工范围：第 9、18、20 页冻结；仅返修第 12、23 页。
 - 第 8–24 页中保持未改：8、10、11、13、14、15、16、17、19、21、22、24。
 - 其他保持未改：1–7、25–52。
 - 页 9：保留原页真实设备照片；重建 VPE 气流、反应腔、晶圆、基座、支座、排气口、RF 加热关系；两条反应式逐字断言。
-- 页 12：左侧 MBE 示意保持上一轮通过版；右侧从原始 PDF 重新裁取显微图，并保留 `4×4 / GaAs substrate / 10 nm / <100>`。
+- 页 12：左侧 MBE 示意保持冻结；右侧显微图重新干净裁取，删除额外 `<100>` 后贴黑框并去除底部残片。
 - 页 18：两幅高密度关系图使用原页正文干净裁图完整保留；中文讲解置备注。
 - 页 20：四条 sp³ 公式与 109.5° 直接使用原页正文裁图，不重新誊写或换公式。
-- 页 23：恢复原子 1s 轨道（ψ1、ψ2）→ LCAO 线性组合 → 成键/反键轨道 → 电子密度位置 → Higher/Lower Energy → V(r) 与 bonding/antibonding energy level 的完整教学链条。
+- 页 23：采用第二轮方案 B，直接保留原 PDF 完整科学图示区域的干净裁图；中文解释仅放备注，不再用自制简化示意图替代。
 - Placeholder：无；目标页已检查 shape_type。
 - 红框中文贴纸：无。
 - 施工说明：无；已执行禁词扫描。
@@ -19,7 +19,7 @@
 - 非目标页 slide XML：与基准逐页 byte-for-byte 相同。
 - Worker self-check: passed.
 - Supervisor visual acceptance: pending.
-- PPT SHA-256（渲染前）：`dc2f44cef27ad88841d16e847335453f3093d899e35aee1b79c190879673a29a`
+- PPT SHA-256（渲染前）：`d3e57986e3d8f637c603e11806252946e6fdc62737ffa89ef012dad7d48afdbe`
 
 ## 渲染与证据
 
@@ -31,4 +31,4 @@
 - 图片均按原始纵横比 contain/等比缩放，脚本未做非等比拉伸。
 - Worker self-check: passed.
 - Supervisor visual acceptance: pending.
-- PPT SHA-256（渲染后）：`dc2f44cef27ad88841d16e847335453f3093d899e35aee1b79c190879673a29a`
+- PPT SHA-256（渲染后）：`d3e57986e3d8f637c603e11806252946e6fdc62737ffa89ef012dad7d48afdbe`
