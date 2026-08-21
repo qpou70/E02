@@ -1,9 +1,8 @@
 name: Supervisor Stage1 visual artifact
 on:
-  push:
+  pull_request:
     branches: [master]
-    paths:
-      - '.github/workflows/supervisor-stage1-artifact.yml'
+  workflow_dispatch:
 permissions:
   contents: read
 jobs:
