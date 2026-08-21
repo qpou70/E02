@@ -38,6 +38,7 @@ jobs:
           python - <<'PY'
           from pathlib import Path
           import fitz
+          from PIL import Image
           src=Path('l5/stage1_source_reference/ECE340_L5_S18_Posted.pdf')
           doc=fitz.open(src)
           assert doc.page_count == 52, doc.page_count
@@ -45,8 +46,12 @@ jobs:
           for p in targets:
               page=doc[p-1]
               pix=page.get_pixmap(matrix=fitz.Matrix(2.5,2.5), alpha=False)
-              pix.save(f'l5/stage1_source_reference/original_pdf_page_{p:02d}.png')
+              png=Path(f'l5/stage1_source_reference/original_pdf_page_{p:02d}.png')
+              pix.save(png)
               Path(f'l5/stage1_source_reference/original_pdf_page_{p:02d}.txt').write_text(page.get_text('text'), encoding='utf-8')
+              im=Image.open(png).convert('RGB')
+              im.thumbnail((900,700))
+              im.save(f'l5/stage1_source_reference/original_pdf_page_{p:02d}_preview.jpg', quality=55, optimize=True)
           PY
       - name: Commit source reference files
         run: |
