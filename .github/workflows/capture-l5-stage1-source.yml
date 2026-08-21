@@ -7,6 +7,11 @@ on:
     paths:
       - '.github/workflows/capture-l5-stage1-source.yml'
       - 'l5/FORCE_L5_STAGE1_SOURCE_CAPTURE.txt'
+  pull_request:
+    branches: [master]
+    paths:
+      - '.github/workflows/capture-l5-stage1-source.yml'
+      - 'l5/SUPERVISOR_STRICT_VISUAL_REWORK_FEEDBACK_08_24.md'
 
 permissions:
   contents: write
