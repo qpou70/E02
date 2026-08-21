@@ -15,7 +15,7 @@ replacements = [
     ),
     (
         'micro=render_crop(12,(390,126,720,535),"p12_right_source.png")',
-        'micro=render_crop(12,(390,126,720,430),"p12_right_source.png",270)'
+        'micro=render_crop(12,(390,126,720,405),"p12_right_source.png",270)'
     ),
     (
         'p20=render_crop(20,(42,126,754,535),"p20_formula_geometry_source.png",270)',
