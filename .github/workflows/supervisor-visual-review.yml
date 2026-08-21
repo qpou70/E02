@@ -1,0 +1,76 @@
+name: Supervisor visual review L5 pages 08-24
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - '.github/workflows/supervisor-visual-review.yml'
+      - 'l5/FORCE_SUPERVISOR_VISUAL_REVIEW.txt'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libreoffice poppler-utils fonts-noto-cjk
+          python -m pip install --upgrade pip
+          python -m pip install pillow
+      - name: Render current fourth revision
+        run: |
+          set -e
+          rm -rf l5/supervisor_visual_fourth /tmp/l5vis
+          mkdir -p l5/supervisor_visual_fourth /tmp/l5vis
+          libreoffice --headless --convert-to pdf --outdir /tmp/l5vis 'l5/ECE340_L5_S18_Posted_中文忠实重建_四次返修版_第8-24页.pptx'
+          PDF=$(find /tmp/l5vis -maxdepth 1 -name '*.pdf' | head -1)
+          pdftoppm -f 8 -l 24 -jpeg -r 120 -jpegopt quality=70 "$PDF" /tmp/l5vis/page >/dev/null 2>&1
+          python - <<'PY'
+          from PIL import Image, ImageDraw, ImageFont
+          from pathlib import Path
+          import base64, textwrap, json
+          src=sorted(Path('/tmp/l5vis').glob('page-*.jpg'))
+          assert len(src)==17, len(src)
+          outdir=Path('l5/supervisor_visual_fourth')
+          def write_b64(path, data):
+              s=base64.b64encode(data).decode('ascii')
+              path.write_text('\n'.join(textwrap.wrap(s,76)),encoding='ascii')
+          # all-pages contact sheet
+          tw,th,lh=320,240,24; cols=4; rows=5
+          sheet=Image.new('RGB',(cols*tw,rows*(th+lh)),'white')
+          draw=ImageDraw.Draw(sheet)
+          try: font=ImageFont.truetype('/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc',15)
+          except: font=None
+          for i,p in enumerate(src):
+              im=Image.open(p).convert('RGB'); im.thumbnail((tw,th))
+              canvas=Image.new('RGB',(tw,th),'white'); canvas.paste(im,((tw-im.width)//2,(th-im.height)//2))
+              x=(i%cols)*tw; y=(i//cols)*(th+lh)
+              sheet.paste(canvas,(x,y)); draw.text((x+6,y+th+2),f'Page {8+i}',fill='black',font=font)
+          import io
+          buf=io.BytesIO(); sheet.save(buf,'WEBP',quality=45,method=6)
+          write_b64(outdir/'contact_sheet.webp.b64',buf.getvalue())
+          # high-res pages requested/known-risk
+          risk=[8,9,12,16,18,20,23]
+          for page in risk:
+              im=Image.open(src[page-8]).convert('RGB')
+              im.thumbnail((1200,900))
+              buf=io.BytesIO(); im.save(buf,'JPEG',quality=72,optimize=True)
+              write_b64(outdir/f'page_{page:02d}.jpg.b64',buf.getvalue())
+          (outdir/'meta.json').write_text(json.dumps({'risk_pages':risk,'all_pages':list(range(8,25)),'contact_bytes':len((outdir/'contact_sheet.webp.b64').read_text())},ensure_ascii=False,indent=2),encoding='utf-8')
+          PY
+      - name: Commit visual review artifacts
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add l5/supervisor_visual_fourth
+          if git diff --cached --quiet; then
+            echo 'No visual artifact changes.'
+          else
+            git commit -m 'Add rendered visual artifacts for L5 supervisor review'
+            git push
+          fi
