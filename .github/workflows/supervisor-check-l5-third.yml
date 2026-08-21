@@ -1,0 +1,98 @@
+name: Supervisor check L5 third revised pages 09 12 19
+
+on:
+  push:
+    branches:
+      - 'supervisor/l5-review-third-revised-08-24'
+    paths:
+      - '.github/workflows/supervisor-check-l5-third.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libreoffice poppler-utils fonts-noto-cjk
+          python -m pip install --upgrade pip
+          python -m pip install pymupdf python-pptx
+      - name: Render and inspect
+        run: |
+          mkdir -p /tmp/rendered l5/supervisor_third_artifacts
+          libreoffice --headless --convert-to pdf --outdir /tmp/rendered 'l5/ECE340_L5_S18_Posted_中文忠实重建_三次返修版_第8-24页.pptx'
+          python - <<'PY'
+          from pathlib import Path
+          from pptx import Presentation
+          import fitz, zipfile, re
+
+          ppt=Path('l5/ECE340_L5_S18_Posted_中文忠实重建_三次返修版_第8-24页.pptx')
+          prev=Path('l5/ECE340_L5_S18_Posted_中文忠实重建_二次返修版_第8-24页.pptx')
+          pdf=next(Path('/tmp/rendered').glob('*.pdf'))
+          prs=Presentation(str(ppt))
+          doc=fitz.open(str(pdf))
+          lines=['# L5 third revised supervisor inspection','',f'PDF pages: {doc.page_count}','']
+
+          # Verify only target slide XML changed.
+          with zipfile.ZipFile(prev) as za, zipfile.ZipFile(ppt) as zb:
+              changed=[]
+              for p in range(1,53):
+                  name=f'ppt/slides/slide{p}.xml'
+                  if za.read(name)!=zb.read(name): changed.append(p)
+              lines.append('Changed slide XML pages vs second revised: '+', '.join(map(str,changed)))
+              lines.append('')
+
+          for p in [9,12,19]:
+              s=prs.slides[p-1]
+              lines.append(f'## Slide {p}')
+              items=[]
+              for i,sh in enumerate(s.shapes):
+                  x,y,w,h=[v/914400 for v in (sh.left,sh.top,sh.width,sh.height)]
+                  txt=''
+                  if getattr(sh,'has_text_frame',False): txt=' '.join(sh.text.split())
+                  typ=str(sh.shape_type)
+                  items.append((i,x,y,w,h,txt,typ))
+                  if txt:
+                      lines.append(f"- shape {i}: {typ}; box=({x:.2f},{y:.2f},{w:.2f},{h:.2f}); text='{txt}'")
+                  elif 'PICTURE' in typ:
+                      lines.append(f"- shape {i}: PICTURE; box=({x:.2f},{y:.2f},{w:.2f},{h:.2f})")
+              # text-text overlaps only; backgrounds/intentional picture overlays excluded
+              for a in range(len(items)):
+                  i,x,y,w,h,t,typ=items[a]
+                  if not t: continue
+                  for b in range(a+1,len(items)):
+                      j,x2,y2,w2,h2,t2,typ2=items[b]
+                      if not t2: continue
+                      ix=max(0,min(x+w,x2+w2)-max(x,x2)); iy=max(0,min(y+h,y2+h2)-max(y,y2))
+                      inter=ix*iy
+                      if inter>0:
+                          r=inter/min(w*h,w2*h2)
+                          if r>0.10:
+                              lines.append(f"  - TEXT_OVERLAP: {i} vs {j}; ratio/min={r:.2f}; '{t}' <> '{t2}'")
+              # rendered PDF text blocks and bboxes
+              page=doc[p-1]
+              lines.append('- Rendered PDF text blocks:')
+              for block in page.get_text('blocks'):
+                  x0,y0,x1,y1,text,*_=block
+                  text=' '.join(text.split())
+                  if text:
+                      lines.append(f"  - bbox=({x0:.0f},{y0:.0f},{x1:.0f},{y1:.0f}): {text}")
+              lines.append('')
+
+          Path('l5/supervisor_third_artifacts/L5_third_inspection.md').write_text('\n'.join(lines),encoding='utf-8')
+          PY
+      - name: Commit report
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- l5/supervisor_third_artifacts/L5_third_inspection.md
+          if git diff --cached --quiet; then
+            echo 'No report changes.'
+          else
+            git commit -m 'Add supervisor inspection for third revised L5 deck'
+            git push
+          fi
