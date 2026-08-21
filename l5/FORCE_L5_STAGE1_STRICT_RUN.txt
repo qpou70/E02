@@ -1,1 +1,2 @@
 Trigger strict Stage 1 run after workflow serialization and page 12 crop tightening.
+Run token: 20260821-1328
