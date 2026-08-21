@@ -6,14 +6,14 @@ on:
     branches: [l5-stage1-strict-rework]
     paths:
       - '.github/workflows/run-l5-stage1-strict.yml'
-      - 'l5/stage1_strict_builder.py'
+      - 'l5/stage1_strict_builder_v2.py'
       - 'l5/stage1_strict_evidence.py'
       - 'l5/FORCE_L5_STAGE1_STRICT_RUN.txt'
   pull_request:
     branches: [master]
     paths:
       - '.github/workflows/run-l5-stage1-strict.yml'
-      - 'l5/stage1_strict_builder.py'
+      - 'l5/stage1_strict_builder_v2.py'
       - 'l5/stage1_strict_evidence.py'
       - 'l5/FORCE_L5_STAGE1_STRICT_RUN.txt'
 
@@ -34,7 +34,7 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install python-pptx pymupdf pillow lxml
       - name: Build stage1 PPT and validate frozen pages
-        run: python l5/stage1_strict_builder.py
+        run: python l5/stage1_strict_builder_v2.py
       - name: Render baseline and stage1 deck
         run: |
           rm -rf l5/stage1_visual_review_08_24
