@@ -16,6 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - name: Install dependencies
         run: |
           sudo apt-get update
@@ -23,18 +24,22 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install pymupdf pillow matplotlib
           npm install pptxgenjs
+
       - name: Reconstruct revised generator
         run: |
           cat l5/generator.part* | base64 -d | gzip -d > l5/refine_generate_l5.js
           node --check l5/refine_generate_l5.js
+
       - name: Download original lecture PDF
         run: |
           curl -L --fail --retry 3 \
             'https://courses.grainger.illinois.edu/ece340/sp2020/Dallesasse_Slides/ECE340_L5_S18_Posted.pdf' \
             -o l5/ECE340_L5_S18_Posted.pdf
+
       - name: Generate revised PowerPoint in repository
         working-directory: l5
         run: node refine_generate_l5.js
+
       - name: Validate revised PPT and export
         run: |
           mkdir -p l5/rendered
@@ -42,43 +47,54 @@ jobs:
             'l5/ECE340_L5_S18_Posted_中文忠实重建_返修版_第8-24页.pptx'
           python - <<'PY'
           from pathlib import Path
-          import re, zipfile, hashlib, fitz
-          ppt=Path('l5/ECE340_L5_S18_Posted_中文忠实重建_返修版_第8-24页.pptx')
-          pdf=Path('l5/rendered/ECE340_L5_S18_Posted_中文忠实重建_返修版_第8-24页.pdf')
-          assert ppt.exists(), ppt
-          with zipfile.ZipFile(ppt) as z:
-              slides=[n for n in z.namelist() if n.startswith('ppt/slides/slide') and n.endswith('.xml')]
-              notes=[n for n in z.namelist() if n.startswith('ppt/notesSlides/notesSlide') and n.endswith('.xml')]
-              assert len(slides)==52, len(slides)
-              assert len(notes)>=52, len(notes)
-              banned=['教师应当','讲解时应','课堂互动建议','本页教学目的','教师需要','建议提问']
-              bad=[]
-              for p in range(8,25):
-                  xml=z.read(f'ppt/notesSlides/notesSlide{p}.xml').decode('utf-8','ignore')
-                  text=re.sub('<[^>]+>','',xml)
-                  if '[Sources]' not in text:
-                      bad.append((p,'missing sources'))
-                  for b in banned:
-                      if b in text:
-                          bad.append((p,'banned',b))
-              assert not bad, bad
-          doc=fitz.open(pdf)
-          assert doc.page_count==52, doc.page_count
-          digest=hashlib.sha256(ppt.read_bytes()).hexdigest()
-          report=f'''# ECE340 L5 revised build report
+          import re
+          import zipfile
+          import hashlib
+          import fitz
 
-- Generated inside GitHub Actions: yes
-- Source PDF pages: 52
-- Revised range: original PDF pages 8–24
-- PPT slides: 52
-- Pages 8–24 notes include [Sources]: checked
-- LibreOffice PDF render pages: {doc.page_count}
-- Workflow validation: passed
-- Microsoft PowerPoint actual open check: not performed in GitHub Linux runner
-- Final revised PPT SHA-256: `{digest}`
-'''
-          Path('l5/BUILD_REPORT_08_24_REVISED.md').write_text(report, encoding='utf-8')
+          ppt = Path('l5/ECE340_L5_S18_Posted_中文忠实重建_返修版_第8-24页.pptx')
+          pdf = Path('l5/rendered/ECE340_L5_S18_Posted_中文忠实重建_返修版_第8-24页.pdf')
+          assert ppt.exists(), ppt
+
+          with zipfile.ZipFile(ppt) as z:
+              slides = [n for n in z.namelist() if n.startswith('ppt/slides/slide') and n.endswith('.xml')]
+              notes = [n for n in z.namelist() if n.startswith('ppt/notesSlides/notesSlide') and n.endswith('.xml')]
+              assert len(slides) == 52, len(slides)
+              assert len(notes) >= 52, len(notes)
+
+              banned = ['教师应当', '讲解时应', '课堂互动建议', '本页教学目的', '教师需要', '建议提问']
+              bad = []
+              for p in range(8, 25):
+                  xml = z.read(f'ppt/notesSlides/notesSlide{p}.xml').decode('utf-8', 'ignore')
+                  text = re.sub('<[^>]+>', '', xml)
+                  if '[Sources]' not in text:
+                      bad.append((p, 'missing sources'))
+                  for phrase in banned:
+                      if phrase in text:
+                          bad.append((p, 'banned', phrase))
+              assert not bad, bad
+
+          doc = fitz.open(pdf)
+          assert doc.page_count == 52, doc.page_count
+          digest = hashlib.sha256(ppt.read_bytes()).hexdigest()
+
+          report_lines = [
+              '# ECE340 L5 revised build report',
+              '',
+              '- Generated inside GitHub Actions: yes',
+              '- Source PDF pages: 52',
+              '- Revised range: original PDF pages 8–24',
+              '- PPT slides: 52',
+              '- Pages 8–24 notes include [Sources]: checked',
+              f'- LibreOffice PDF render pages: {doc.page_count}',
+              '- Workflow validation: passed',
+              '- Microsoft PowerPoint actual open check: not performed in GitHub Linux runner',
+              f'- Final revised PPT SHA-256: `{digest}`',
+              '',
+          ]
+          Path('l5/BUILD_REPORT_08_24_REVISED.md').write_text('\n'.join(report_lines), encoding='utf-8')
           PY
+
       - name: Commit revised PPT and report
         run: |
           git config user.name 'github-actions[bot]'
