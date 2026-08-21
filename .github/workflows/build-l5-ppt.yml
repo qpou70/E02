@@ -6,7 +6,6 @@ on:
     branches: [master]
     paths:
       - '.github/workflows/build-l5-ppt.yml'
-      - 'l5/generator.part*'
       - 'l5/ECE340_L5_S18_Posted_中文忠实重建_返修版_第8-24页.pptx'
 
 permissions:
@@ -17,28 +16,94 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libreoffice poppler-utils fonts-noto-cjk fonts-dejavu-core
+          sudo apt-get install -y libreoffice fonts-noto-cjk fonts-dejavu-core
           python -m pip install --upgrade pip
           python -m pip install python-pptx pymupdf pillow lxml
-
-      - name: Reconstruct second revised patcher
+      - name: Apply second revised patch
         run: |
-          cat l5/generator.part* | base64 -d | gzip -d > l5/patch_l5_second.py
-          python -m py_compile l5/patch_l5_second.py
+          cat > l5/second_patch.py <<'PY'
+          from pathlib import Path
+          import re, zipfile, hashlib
+          from pptx import Presentation
+          from pptx.util import Inches, Pt
+          from pptx.dml.color import RGBColor
 
-      - name: Download original lecture PDF
-        run: |
-          curl -L --fail --retry 3 \
-            'https://courses.grainger.illinois.edu/ece340/sp2020/Dallesasse_Slides/ECE340_L5_S18_Posted.pdf' \
-            -o l5/ECE340_L5_S18_Posted.pdf
+          base=Path('l5/ECE340_L5_S18_Posted_中文忠实重建_返修版_第8-24页.pptx')
+          out=Path('l5/ECE340_L5_S18_Posted_中文忠实重建_二次返修版_第8-24页.pptx')
+          prs=Presentation(base)
 
-      - name: Generate second revised PowerPoint in repository
-        run: python l5/patch_l5_second.py
+          def box(slide,x,y,w,h,text,size=13,color=(160,0,0),fill=(255,255,255)):
+              s=slide.shapes.add_textbox(Inches(x),Inches(y),Inches(w),Inches(h))
+              tf=s.text_frame; tf.clear(); tf.word_wrap=True; tf.margin_left=Pt(3); tf.margin_right=Pt(3); tf.margin_top=Pt(1); tf.margin_bottom=Pt(1)
+              p=tf.paragraphs[0]; r=p.add_run(); r.text=text; r.font.name='Microsoft YaHei'; r.font.size=Pt(size); r.font.bold=True; r.font.color.rgb=RGBColor(*color)
+              if fill:
+                  s.fill.solid(); s.fill.fore_color.rgb=RGBColor(*fill); s.line.color.rgb=RGBColor(*color); s.line.width=Pt(0.75)
+              else:
+                  s.fill.background(); s.line.fill.background()
+              return s
+          def del_text_contains(slide, keys):
+              for sh in list(slide.shapes):
+                  t = sh.text if getattr(sh,'has_text_frame',False) else ''
+                  if any(k in t for k in keys):
+                      sh.element.getparent().remove(sh.element)
+          def set_notes(n, txt):
+              nf=prs.slides[n-1].notes_slide.notes_text_frame; nf.clear(); nf.text=txt
 
+          s=prs.slides[8]; del_text_contains(s,['Gas inlet','Gas baffle','Quartz chamber','Radio frequency source','气体入口','石英反应腔'])
+          box(s,5.25,2.04,1.15,.28,'气体入口\nGas inlet',11)
+          box(s,6.75,2.58,1.35,.28,'挡流板\nGas baffle',11)
+          box(s,7.22,3.05,1.45,.28,'石英反应腔',11)
+          box(s,5.78,3.25,1.00,.28,'硅片\nWafers',11)
+          box(s,7.25,3.72,1.20,.28,'基座盘\nSusceptor',11)
+          box(s,7.23,4.90,1.15,.28,'支座\nPedestal',11)
+          box(s,5.72,5.25,0.92,.25,'排气口\nVent',10)
+          box(s,3.62,3.75,1.35,.35,'射频源\nRF source',10)
+
+          s=prs.slides[11]; del_text_contains(s,['Substrate','Molecular beams','Shutters','Sources','衬底','分子束'])
+          box(s,2.63,2.42,1.00,.25,'GaAs 衬底',11)
+          box(s,3.58,3.58,1.12,.25,'分子束',11)
+          box(s,3.98,4.22,.92,.25,'快门',11)
+          box(s,4.18,4.56,.92,.25,'束源',11)
+          box(s,7.30,5.22,1.15,.25,'GaAs substrate',9,color=(0,0,0),fill=(255,255,255))
+
+          s=prs.slides[16]; del_text_contains(s,['保留原表：轨道','轨道、电子数、芯层简写'])
+
+          s=prs.slides[17]; del_text_contains(s,['Core electrons','Valence electrons','Valence orbits','First excitation orbit','Ionization or zero energy'])
+          box(s,1.35,3.92,1.25,.28,'价电子',11)
+          box(s,1.45,4.45,1.25,.28,'芯层电子',11)
+          box(s,4.18,3.13,1.20,.28,'价轨道',11)
+          box(s,4.22,4.10,1.28,.28,'首次激发轨道',10)
+          box(s,6.25,2.15,1.95,.28,'电离/零能级',10)
+          box(s,8.10,3.45,1.08,.28,'价能级',11)
+          box(s,7.72,4.55,1.08,.25,'1s/2s/2p/3s/3p',9)
+
+          s=prs.slides[18]; del_text_contains(s,['winter.group.shef','orbitron'])
+          box(s,3.35,6.78,3.75,.28,'图源：http://winter.group.shef.ac.uk/orbitron/',11,color=(0,0,0),fill=None)
+
+          s=prs.slides[21]; del_text_contains(s,['周期势中的电子波','光学周期结构中的衍射类比'])
+          box(s,6.15,5.05,3.15,.32,'类比：周期势中的电子波 ↔ 光学周期结构中的衍射',12,color=(0,0,150),fill=(242,246,255))
+
+          notes20 = '同学们，现在我们把前面的轨道形状推进到硅、金刚石以及很多四面体半导体中非常关键的 sp³ 杂化。请先看左上角的示意：一个 s 轨道与三个 p 轨道，也就是 p_x、p_y、p_z 轨道，经过线性组合后形成四个等价的 sp³ 杂化轨道。页面左下方的四个式子要真正读出来：ψ₁ 等于二分之一乘以 ψ_s 加 ψ_p_x 加 ψ_p_y 加 ψ_p_z；ψ₂ 等于二分之一乘以 ψ_s 减 ψ_p_x 减 ψ_p_y 加 ψ_p_z；ψ₃ 等于二分之一乘以 ψ_s 加 ψ_p_x 减 ψ_p_y 减 ψ_p_z；ψ₄ 等于二分之一乘以 ψ_s 减 ψ_p_x 加 ψ_p_y 减 ψ_p_z。这里 ψ_s 是 s 轨道波函数，ψ_p_x、ψ_p_y、ψ_p_z 分别代表沿 x、y、z 方向的 p 轨道波函数。前面的二分之一不是随便写的系数，它保证组合后的轨道具有合适的归一化关系。不同公式中的加号和减号代表波函数相位的不同组合，因此四个杂化轨道指向空间中不同的四面体方向。请看右侧图，理想四面体结构中的键角是 109.5°，这正是硅中共价键方向性的几何基础。这里问大家一个问题：能不能把四个公式里的正负号任意互换？答案是不可以，因为正负号决定相位和空间指向，随意改动就不再对应这四个等价的四面体方向。还要注意，真实晶体中如果存在应变，键角会偏离理想值；氨等分子的键角也会因为孤对电子排斥而略小。本页的结论是，能带和晶体结构不是孤立概念，轨道波函数的空间组合直接决定成键方向，也决定后面理解半导体能带和有效质量时的物理基础。\n[Sources]\nECE340_L5_S18_Posted.pdf, original page 20\n教材：Solid State Electronic Devices, 7th edition.'
+          set_notes(20, notes20)
+
+          prs.save(out)
+          digest=hashlib.sha256(out.read_bytes()).hexdigest()
+          Path('l5/BUILD_REPORT_08_24_SECOND_REVISED.md').write_text('\n'.join([
+              '# ECE340 L5 second revised build report','',
+              '- Generated inside GitHub Actions: yes',
+              '- Source PDF pages: 52',
+              '- Second revised range: original PDF pages 8–24',
+              '- Targeted modified pages: 9, 12, 17, 18, 19, 20, 22',
+              '- PPT slides: 52',
+              '- Pages 8–24 notes include [Sources]: checked',
+              '- Page 20 notes effective Chinese characters: >=400 checked',
+              f'- Final second revised PPT SHA-256 before LibreOffice validation: `{digest}`',''
+          ]), encoding='utf-8')
+          PY
+          python l5/second_patch.py
       - name: Validate second revised PPT and export
         run: |
           mkdir -p l5/rendered_second
@@ -49,49 +114,28 @@ jobs:
           import re, zipfile, hashlib, fitz
           ppt=Path('l5/ECE340_L5_S18_Posted_中文忠实重建_二次返修版_第8-24页.pptx')
           pdf=Path('l5/rendered_second/ECE340_L5_S18_Posted_中文忠实重建_二次返修版_第8-24页.pdf')
-          assert ppt.exists(), ppt
-          assert pdf.exists(), pdf
           with zipfile.ZipFile(ppt) as z:
               slides=[n for n in z.namelist() if n.startswith('ppt/slides/slide') and n.endswith('.xml')]
               notes=[n for n in z.namelist() if n.startswith('ppt/notesSlides/notesSlide') and n.endswith('.xml')]
               assert len(slides)==52, len(slides)
               assert len(notes)>=52, len(notes)
-              banned=['教师应当','讲解时应','课堂互动建议','本页教学目的','教师需要','建议提问']
-              bad=[]
+              bad=[]; banned=['教师应当','讲解时应','课堂互动建议','本页教学目的','教师需要','建议提问']
               for p in range(8,25):
                   xml=z.read(f'ppt/notesSlides/notesSlide{p}.xml').decode('utf-8','ignore')
                   text=re.sub('<[^>]+>','',xml)
-                  if '[Sources]' not in text:
-                      bad.append((p,'missing sources'))
+                  if '[Sources]' not in text: bad.append((p,'missing sources'))
                   for phrase in banned:
-                      if phrase in text:
-                          bad.append((p,'banned',phrase))
+                      if phrase in text: bad.append((p,'banned',phrase))
                   if p==20:
-                      main=text.split('[Sources]')[0]
-                      han=''.join(re.findall(r'[\u4e00-\u9fff]',main))
-                      if len(han)<400:
-                          bad.append((p,'notes_cn_chars',len(han)))
+                      han=''.join(re.findall(r'[\u4e00-\u9fff]',text.split('[Sources]')[0]))
+                      if len(han)<400: bad.append((p,'notes_cn_chars',len(han)))
               assert not bad, bad
-          doc=fitz.open(pdf)
-          assert doc.page_count==52, doc.page_count
+          doc=fitz.open(pdf); assert doc.page_count==52, doc.page_count
           digest=hashlib.sha256(ppt.read_bytes()).hexdigest()
-          report_lines=[
-              '# ECE340 L5 second revised build report','',
-              '- Generated inside GitHub Actions: yes',
-              '- Source PDF pages: 52',
-              '- Second revised range: original PDF pages 8–24',
-              '- Targeted modified pages: 9, 12, 17, 18, 19, 20, 22',
-              '- PPT slides: 52',
-              '- Pages 8–24 notes include [Sources]: checked',
-              '- Page 20 notes effective Chinese characters: >=400 checked',
-              f'- LibreOffice PDF render pages: {doc.page_count}',
-              '- Workflow validation: passed',
-              '- Microsoft PowerPoint actual open check: not performed in GitHub Linux runner',
-              f'- Final second revised PPT SHA-256: `{digest}`',''
-          ]
-          Path('l5/BUILD_REPORT_08_24_SECOND_REVISED.md').write_text('\n'.join(report_lines),encoding='utf-8')
+          report=Path('l5/BUILD_REPORT_08_24_SECOND_REVISED.md').read_text(encoding='utf-8')
+          report += f'- LibreOffice PDF render pages: {doc.page_count}\n- Workflow validation: passed\n- Microsoft PowerPoint actual open check: not performed in GitHub Linux runner\n- Final second revised PPT SHA-256 after validation: `{digest}`\n'
+          Path('l5/BUILD_REPORT_08_24_SECOND_REVISED.md').write_text(report, encoding='utf-8')
           PY
-
       - name: Commit second revised PPT and report
         run: |
           git config user.name 'github-actions[bot]'
