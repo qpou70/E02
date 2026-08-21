@@ -6,6 +6,7 @@ on:
     branches: [master]
     paths:
       - '.github/workflows/build-l5-ppt.yml'
+      - 'l5/FORCE_L5_FOURTH_REVISED_TRIGGER.txt'
 
 permissions:
   contents: write
@@ -63,8 +64,7 @@ jobs:
           assert '承载/加热基座' not in joined, joined
           assert '支撑台' not in joined, joined
           assert '• Vent 排气口' not in joined and 'Vent 排气口' not in joined, joined
-          required = ['气体入口', '挡流板', '石英反应腔', '硅片', '基座盘', '支座', '排气口', '射频源']
-          for item in required:
+          for item in ['气体入口', '挡流板', '石英反应腔', '硅片', '基座盘', '支座', '排气口', '射频源']:
               assert item in joined, f'missing accepted in-figure label: {item}'
           assert removed, 'no residual old page 9 list text was removed'
 
@@ -78,11 +78,9 @@ jobs:
                       assert a != b, 'slide 9 did not change'
                   else:
                       assert a == b, f'slide {p} changed unexpectedly'
-
           digest = hashlib.sha256(out.read_bytes()).hexdigest()
           Path('l5/BUILD_REPORT_08_24_FOURTH_REVISED.md').write_text('\n'.join([
-              '# ECE340 L5 fourth revised build report',
-              '',
+              '# ECE340 L5 fourth revised build report', '',
               '- Generated inside GitHub Actions: yes',
               '- Source PDF pages: 52',
               '- Fourth revised range: original PDF pages 8–24',
@@ -93,8 +91,7 @@ jobs:
               '- PPT slides: 52',
               '- Microsoft PowerPoint actual open check: not performed in GitHub Linux runner',
               '- Status: content and automated render validation passed; pending Microsoft PowerPoint actual open check',
-              f'- Final fourth revised PPT SHA-256 before LibreOffice validation: `{digest}`',
-              ''
+              f'- Final fourth revised PPT SHA-256 before LibreOffice validation: `{digest}`', ''
           ]), encoding='utf-8')
           PY
           python l5/fourth_patch.py
