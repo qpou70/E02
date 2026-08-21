@@ -9,11 +9,11 @@
 - Rebuilt page 20 right-side sp3 diagram and non-overlapping note area
 - Reworked pages 8 and 16 with PowerPoint-stable short line widths
 - Completed page 24 table Chinese localization
-- Final PPT SHA-256 before render validation: `5f5fe5ba803d972155beb4b8e2e4a4be2e2e5669c64b894220a328a635b462b5`
+- Final PPT SHA-256 before render validation: `a070cb71d85ebea221eb94844c44b259a04aa08dd0ac8fa288ddc0787ba43c69`
 - Microsoft PowerPoint actual open check: not performed in GitHub Linux runner; rendered visual evidence is provided for supervisor review
 - LibreOffice PDF render pages: 52
 - Rendered JPG evidence: l5/visual_review_08_24/full/page_08.jpg through page_24.jpg
 - High-risk rendered pages: 8, 9, 12, 16, 18, 20, 23
 - Contact sheet: l5/visual_review_08_24/contact_sheet_08_24.jpg
 - Workflow validation: passed
-- Final PPT SHA-256 after validation: `5f5fe5ba803d972155beb4b8e2e4a4be2e2e5669c64b894220a328a635b462b5`
+- Final PPT SHA-256 after validation: `a070cb71d85ebea221eb94844c44b259a04aa08dd0ac8fa288ddc0787ba43c69`
