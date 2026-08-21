@@ -20,13 +20,14 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libreoffice poppler-utils fonts-noto-cjk
           python -m pip install --upgrade pip
-          python -m pip install pymupdf python-pptx
+          python -m pip install pymupdf python-pptx pillow
       - name: Download original lecture PDF
         run: |
           curl -L --fail --retry 3 'https://courses.grainger.illinois.edu/ece340/sp2020/Dallesasse_Slides/ECE340_L5_S18_Posted.pdf' -o /tmp/original.pdf
       - name: Render revised deck and prepare supervisor artifacts
         run: |
-          mkdir -p /tmp/rendered l5/supervisor_artifacts
+          rm -rf l5/supervisor_artifacts/slides
+          mkdir -p /tmp/rendered l5/supervisor_artifacts/slides
           libreoffice --headless --convert-to pdf --outdir /tmp/rendered 'l5/ECE340_L5_S18_Posted_中文忠实重建_返修版_第8-24页.pptx'
           python - <<'PY'
           from pathlib import Path
@@ -46,29 +47,48 @@ jobs:
           out.save('l5/supervisor_artifacts/L5_revised_compare_pages_08_24.pdf', garbage=4, deflate=True)
 
           prs = Presentation('l5/ECE340_L5_S18_Posted_中文忠实重建_返修版_第8-24页.pptx')
-          rows=[]
+          overlap_lines=['# Potential shape overlaps (slides 8–24)','']
           for p in range(8,25):
               slide=prs.slides[p-1]
               note=slide.notes_slide.notes_text_frame.text or ''
               main=note.split('[Sources]')[0]
               han=len(re.findall(r'[\u4e00-\u9fff]',main))
-              texts=[]
-              for sh in slide.shapes:
+              shape_lines=[]
+              boxes=[]
+              for i,sh in enumerate(slide.shapes):
+                  typ=str(sh.shape_type)
+                  text=''
                   if getattr(sh,'has_text_frame',False):
-                      t=sh.text.strip()
-                      if t:
-                          texts.append(t)
-              rows.append(f'## Slide {p}\n\n**Han chars before [Sources]: {han}**\n\n### Visible slide text\n\n' + '\n\n'.join(texts) + '\n\n### Notes\n\n' + note)
-          Path('l5/supervisor_artifacts/L5_revised_slide_text_and_notes_08_24.md').write_text('\n\n---\n\n'.join(rows),encoding='utf-8')
+                      text=sh.text.strip()
+                  x,y,w,h = [round(v/914400,3) for v in (sh.left,sh.top,sh.width,sh.height)]
+                  shape_lines.append(f'- shape {i}: type={typ}; x={x}, y={y}, w={w}, h={h}; text={text!r}')
+                  boxes.append((i,x,y,w,h,text,typ))
+              # flag meaningful overlaps except full-slide/background-like shapes and tiny decorative lines
+              for a in range(len(boxes)):
+                  ia,xa,ya,wa,ha,ta,tya=boxes[a]
+                  if wa*ha < 0.08: continue
+                  for b in range(a+1,len(boxes)):
+                      ib,xb,yb,wb,hb,tb,tyb=boxes[b]
+                      if wb*hb < 0.08: continue
+                      ix=max(0,min(xa+wa,xb+wb)-max(xa,xb)); iy=max(0,min(ya+ha,yb+hb)-max(ya,yb))
+                      inter=ix*iy
+                      if inter<=0: continue
+                      ratio=inter/min(wa*ha,wb*hb)
+                      if ratio>=0.35 and ((ta or tb) or ('PICTURE' in tya.upper()) or ('PICTURE' in tyb.upper())):
+                          overlap_lines.append(f'- Slide {p}: shapes {ia} and {ib}, overlap/min-area={ratio:.2f}; A={ta[:80]!r}; B={tb[:80]!r}')
+              visible='\n'.join([f'- {sh.text.strip()}' for sh in slide.shapes if getattr(sh,'has_text_frame',False) and sh.text.strip()])
+              content=(f'# Slide {p}\n\nHan chars before [Sources]: {han}\n\n## Visible text\n{visible}\n\n## Shape manifest\n'+'\n'.join(shape_lines)+f'\n\n## Notes\n\n{note}\n')
+              Path(f'l5/supervisor_artifacts/slides/slide_{p:02d}.md').write_text(content,encoding='utf-8')
+          Path('l5/supervisor_artifacts/L5_overlap_report_08_24.md').write_text('\n'.join(overlap_lines),encoding='utf-8')
           PY
       - name: Commit supervisor artifacts
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add -- l5/supervisor_artifacts/L5_revised_compare_pages_08_24.pdf l5/supervisor_artifacts/L5_revised_slide_text_and_notes_08_24.md
+          git add -- l5/supervisor_artifacts/L5_revised_compare_pages_08_24.pdf l5/supervisor_artifacts/L5_overlap_report_08_24.md l5/supervisor_artifacts/slides
           if git diff --cached --quiet; then
             echo 'No supervisor artifact changes.'
           else
-            git commit -m 'Add supervisor artifacts for revised L5 deck'
+            git commit -m 'Add per-slide supervisor inspection artifacts'
             git push
           fi
