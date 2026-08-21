@@ -15,7 +15,7 @@ replacements = [
     ),
     (
         'micro=render_crop(12,(390,126,720,535),"p12_right_source.png")',
-        'p12_info=[]\nfor info12 in doc[11].get_image_info(xrefs=True):\n    bb12=info12.get("bbox",(0,0,0,0)); xref12=info12.get("xref",0)\n    if xref12 and bb12[0] > 300 and bb12[1] >= 120 and bb12[3] <= 470 and info12.get("width",0) > 400 and info12.get("height",0) > 300:\n        p12_info.append(info12)\nassert p12_info, "page 12 right source image not found"\nmicro_info=max(p12_info,key=lambda i:(i["bbox"][2]-i["bbox"][0])*(i["bbox"][3]-i["bbox"][1]))\nimg12=doc.extract_image(micro_info["xref"])\nmicro=ASSET/("p12_right_source."+img12.get("ext","png"))\nmicro.write_bytes(img12["image"])'
+        'micro=render_crop(12,(390,126,720,430),"p12_right_source.png",270)'
     ),
     (
         'p20=render_crop(20,(42,126,754,535),"p20_formula_geometry_source.png",270)',
