@@ -26,6 +26,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: l5-stage2-round2-visual-repair
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -62,8 +66,7 @@ jobs:
             echo 'No generated changes.'
           else
             git commit -m 'Apply Stage 2 ROUND2 visual repair outputs'
-            git fetch origin l5-stage1-strict-rework
-            git push --force-with-lease origin HEAD:l5-stage1-strict-rework
+            git push --force origin HEAD:l5-stage1-strict-rework
           fi
       - name: Upload Stage 2 ROUND2 visual artifacts
         uses: actions/upload-artifact@v4
