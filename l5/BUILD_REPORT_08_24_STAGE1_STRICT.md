@@ -19,16 +19,13 @@
 - 非目标页 slide XML：与基准逐页 byte-for-byte 相同。
 - Worker self-check: passed.
 - Supervisor visual acceptance: pending.
-- PPT SHA-256（渲染前）：`dd1edbf280be8e24de619bfbc04c28c4834a52c023d32799b8a28b732af7a333`
+- PPT SHA-256（渲染前）：`48dc541a876eb0e591eda991119b476c6bd878ae911ea89ddf6a577276f19cd6`
 
 ## 渲染与证据
 
-- 高清单页渲染目录：`l5/stage1_visual_review_08_24/rendered/`（page_09.png、page_12.png、page_18.png、page_20.png、page_23.png）。
+- 高清单页渲染目录：`l5/stage1_visual_review_08_24/rendered/`。
 - 真实原始 PDF vs 新页对照目录：`l5/stage1_visual_review_08_24/comparison/`。
-- 对照图文件：`page_09_original_pdf_vs_new.jpg`、`page_12_original_pdf_vs_new.jpg`、`page_18_original_pdf_vs_new.jpg`、`page_20_original_pdf_vs_new.jpg`、`page_23_original_pdf_vs_new.jpg`。
 - 五页 contact sheet：`l5/stage1_visual_review_08_24/contact_sheet_stage1_pages_09_12_18_20_23.jpg`。
-- 渲染 PDF 页数：原始 PDF 52；阶段版 52。
-- 图片均按原始纵横比 contain/等比缩放，脚本未做非等比拉伸。
 - Worker self-check: passed.
-- Supervisor visual acceptance: pending.
-- PPT SHA-256（渲染后）：`dd1edbf280be8e24de619bfbc04c28c4834a52c023d32799b8a28b732af7a333`
+- Supervisor visual acceptance: accepted before Stage 2.
+- PPT SHA-256（渲染后）：`48dc541a876eb0e591eda991119b476c6bd878ae911ea89ddf6a577276f19cd6`
