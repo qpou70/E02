@@ -32,7 +32,7 @@
 - Changed slide XMLs: [20, 22, 23]
 - Expected changed slide XMLs: [20, 22, 23]
 - Notes unchanged on pages 20, 22, 23: yes
-- New PPT SHA-256: `dbcb43ae9bfcf3e10d125d954c32e57432e6ca34dcf7fa852fe2fcb86afd4a15`
+- New PPT SHA-256: `937fe21fcd915ac848ee6571f1a20fa4efb77bb52de273c74fcfc87b2bb65806`
 
 ## Worker status
 第20、22、23页整页中文图已生成并装配回 PPT，视觉证据已提交，等待 supervisor 检查。
