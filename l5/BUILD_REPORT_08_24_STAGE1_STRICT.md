@@ -19,4 +19,4 @@
 - 非目标页 slide XML：与基准逐页 byte-for-byte 相同。
 - Worker self-check: passed.
 - Supervisor visual acceptance: pending.
-- PPT SHA-256（渲染前）：`ec9c7c5066f58f9f28b377843ab043b97fb0455f67261ec11d91bcad0f76fc11`
+- PPT SHA-256（渲染前）：`f447ed35d243fa3525a03993438e7e4a745b11b3b3715525ec2de1acb59931b6`
