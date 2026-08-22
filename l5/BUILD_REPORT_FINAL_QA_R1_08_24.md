@@ -3,7 +3,7 @@
 - Supervisor feedback source: `l5/SUPERVISOR_FINAL_QA_VISUAL_REVIEW_FEEDBACK_ROUND1.md`, commit `ebf1fb43a7b6346e45621d11e8a47bf0a300ab81`.
 - 基准 Final Candidate：`l5/ECE340_L5_S18_Posted_中文忠实重建_最终候选版_第8-24页.pptx`
 - 新 Final Candidate R1：`l5/ECE340_L5_S18_Posted_中文忠实重建_最终候选版_R1_第8-24页.pptx`
-- Final Candidate R1 SHA-256：`8258e10ccf1a6916f217192afc68f35bd6a8a8204d43bba97d6f282af0d4f6bf`
+- Final Candidate R1 SHA-256：`5c8b0712d36874c2b68e8333dda153c2e0fe7302f984cd26c74557b1a15fc88c`
 - 52 页页数确认：passed（PPT: 52 slides; exported PDF: 52 pages）
 - 实际视觉修改页面：第 13、15、20、21 页
 - 实际 Notes 修改页面：第 8、9、10、11、12、14、16、17、18、19、20、22、23、24 页
