@@ -1,4 +1,4 @@
-name: Run ECE340 L5 Final QA R2 page 18
+name: Run ECE340 L5 image rebuild 20 22 23
 
 on:
   workflow_dispatch:
@@ -6,20 +6,20 @@ on:
     branches: [l5-stage1-strict-rework]
     paths:
       - '.github/workflows/run-l5-stage1-strict.yml'
-      - 'l5/final_qa_r2_page18_caption.py'
+      - 'l5/final_qa_image_rebuild_20_22_23.py'
       - 'l5/FORCE_L5_STAGE1_STRICT_RUN.txt'
   pull_request:
     branches: [master]
     paths:
       - '.github/workflows/run-l5-stage1-strict.yml'
-      - 'l5/final_qa_r2_page18_caption.py'
+      - 'l5/final_qa_image_rebuild_20_22_23.py'
       - 'l5/FORCE_L5_STAGE1_STRICT_RUN.txt'
 
 permissions:
   contents: write
 
 concurrency:
-  group: l5-final-qa-r2-page18
+  group: l5-final-qa-image-rebuild-20-22-23
   cancel-in-progress: true
 
 jobs:
@@ -35,27 +35,35 @@ jobs:
           sudo apt-get install -y libreoffice fonts-noto-cjk fonts-dejavu-core
           python -m pip install --upgrade pip
           python -m pip install python-pptx pymupdf pillow lxml
-      - name: Build Final Candidate R2 page 18 evidence
-        run: python l5/final_qa_r2_page18_caption.py
-      - name: Commit Final Candidate R2 outputs
+      - name: Build Final Candidate R3 pages 20 22 23
+        run: python l5/final_qa_image_rebuild_20_22_23.py
+      - name: Commit R3 outputs
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           if git diff --cached --quiet; then
             echo 'No generated changes.'
           else
-            git commit -m 'Apply ECE340 L5 final QA R2 page 18 caption fix'
+            git commit -m 'Generate ECE340 L5 final candidate R3 image rebuild pages 20 22 23'
             git pull --rebase origin l5-stage1-strict-rework
             git push origin HEAD:l5-stage1-strict-rework
           fi
-      - name: Upload Final Candidate R2 artifacts
+      - name: Upload R3 artifacts
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: l5-final-qa-r2-page18
+          name: l5-final-qa-image-rebuild-20-22-23
           path: |
-            l5/ECE340_L5_S18_Posted_中文忠实重建_最终候选版_R2_第8-24页.pptx
-            l5/BUILD_REPORT_FINAL_QA_R2_PAGE18.md
-            l5/final_qa_r2_page18/rendered/page_18.png
-            l5/final_qa_r2_page18/comparison/page_18_original_pdf_vs_final_candidate_r2.jpg
+            l5/ECE340_L5_S18_Posted_中文忠实重建_最终候选版_R3_第8-24页.pptx
+            l5/BUILD_REPORT_FINAL_QA_IMAGE_REBUILD_20_22_23.md
+            l5/final_qa_image_rebuild_20_22_23/generated/page_20_cn.png
+            l5/final_qa_image_rebuild_20_22_23/generated/page_22_cn.png
+            l5/final_qa_image_rebuild_20_22_23/generated/page_23_cn.png
+            l5/final_qa_image_rebuild_20_22_23/rendered/page_20.png
+            l5/final_qa_image_rebuild_20_22_23/rendered/page_22.png
+            l5/final_qa_image_rebuild_20_22_23/rendered/page_23.png
+            l5/final_qa_image_rebuild_20_22_23/comparison/page_20_original_pdf_vs_final_candidate_r3.jpg
+            l5/final_qa_image_rebuild_20_22_23/comparison/page_22_original_pdf_vs_final_candidate_r3.jpg
+            l5/final_qa_image_rebuild_20_22_23/comparison/page_23_original_pdf_vs_final_candidate_r3.jpg
+            l5/final_qa_image_rebuild_20_22_23/contact_sheet_pages_20_22_23.jpg
           retention-days: 7
