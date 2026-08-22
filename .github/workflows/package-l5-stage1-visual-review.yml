@@ -1,14 +1,11 @@
-name: Package L5 Stage1 visual review
+name: Package L5 Stage2 visual review
 
 on:
-  pull_request:
-    branches: [master]
-    paths:
-      - '.github/workflows/package-l5-stage1-visual-review.yml'
   push:
     branches: [l5-stage1-strict-rework]
     paths:
       - 'l5/FORCE_L5_STAGE1_PACKAGE.txt'
+      - '.github/workflows/package-l5-stage1-visual-review.yml'
   workflow_dispatch:
 
 jobs:
@@ -18,22 +15,41 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: l5-stage1-strict-rework
-      - name: Verify committed review evidence
+      - name: Verify committed stage2 review evidence
         run: |
-          test -f l5/stage1_visual_review_08_24/rendered/page_09.png
-          test -f l5/stage1_visual_review_08_24/rendered/page_12.png
-          test -f l5/stage1_visual_review_08_24/rendered/page_18.png
-          test -f l5/stage1_visual_review_08_24/rendered/page_20.png
-          test -f l5/stage1_visual_review_08_24/rendered/page_23.png
-          test -f l5/stage1_visual_review_08_24/contact_sheet_stage1_pages_09_12_18_20_23.jpg
+          test -f l5/stage2_visual_review/rendered/page_08.png
+          test -f l5/stage2_visual_review/rendered/page_10.png
+          test -f l5/stage2_visual_review/rendered/page_11.png
+          test -f l5/stage2_visual_review/rendered/page_14.png
+          test -f l5/stage2_visual_review/rendered/page_16.png
+          test -f l5/stage2_visual_review/rendered/page_17.png
+          test -f l5/stage2_visual_review/rendered/page_19.png
+          test -f l5/stage2_visual_review/rendered/page_22.png
+          test -f l5/stage2_visual_review/rendered/page_24.png
+          test -f l5/stage2_visual_review/contact_sheet_stage2_pages_08_10_11_14_16_17_19_22_24.jpg
+          test -f l5/stage2_visual_review/comparison/page_08_original_pdf_vs_new.jpg
+          test -f l5/stage2_visual_review/comparison/page_24_original_pdf_vs_new.jpg
       - uses: actions/upload-artifact@v4
         with:
-          name: l5-stage1-visual-review
+          name: l5-stage2-visual-review
           path: |
-            l5/stage1_visual_review_08_24/rendered/page_09.png
-            l5/stage1_visual_review_08_24/rendered/page_12.png
-            l5/stage1_visual_review_08_24/rendered/page_18.png
-            l5/stage1_visual_review_08_24/rendered/page_20.png
-            l5/stage1_visual_review_08_24/rendered/page_23.png
-            l5/stage1_visual_review_08_24/contact_sheet_stage1_pages_09_12_18_20_23.jpg
+            l5/stage2_visual_review/rendered/page_08.png
+            l5/stage2_visual_review/rendered/page_10.png
+            l5/stage2_visual_review/rendered/page_11.png
+            l5/stage2_visual_review/rendered/page_14.png
+            l5/stage2_visual_review/rendered/page_16.png
+            l5/stage2_visual_review/rendered/page_17.png
+            l5/stage2_visual_review/rendered/page_19.png
+            l5/stage2_visual_review/rendered/page_22.png
+            l5/stage2_visual_review/rendered/page_24.png
+            l5/stage2_visual_review/comparison/page_08_original_pdf_vs_new.jpg
+            l5/stage2_visual_review/comparison/page_10_original_pdf_vs_new.jpg
+            l5/stage2_visual_review/comparison/page_11_original_pdf_vs_new.jpg
+            l5/stage2_visual_review/comparison/page_14_original_pdf_vs_new.jpg
+            l5/stage2_visual_review/comparison/page_16_original_pdf_vs_new.jpg
+            l5/stage2_visual_review/comparison/page_17_original_pdf_vs_new.jpg
+            l5/stage2_visual_review/comparison/page_19_original_pdf_vs_new.jpg
+            l5/stage2_visual_review/comparison/page_22_original_pdf_vs_new.jpg
+            l5/stage2_visual_review/comparison/page_24_original_pdf_vs_new.jpg
+            l5/stage2_visual_review/contact_sheet_stage2_pages_08_10_11_14_16_17_19_22_24.jpg
           retention-days: 7
