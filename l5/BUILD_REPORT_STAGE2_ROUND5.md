@@ -6,7 +6,7 @@
 - 本轮只修改第 16 页右下金属键图区。
 - 其他 slide 冻结：第 8–15、17–24 页；第 1–7、25–52 页。
 - Slide XML 检查：仅第 16 页与 ROUND4 基准不同。
-- 删除对象数量：4 个，仅限右下金属键区域及其上方残留标题条清理。
+- 删除对象数量：6 个，仅限右下金属键区域及其上方残留标题条清理。
 
 ## 第 16 页右下金属键图区处理
 
@@ -26,5 +26,5 @@
 
 - Worker self-check 状态：passed。
 - Supervisor visual acceptance: pending。
-- PPT SHA-256（渲染前）：`8a543a93f01b9986fcf864ddd90322ccf808881f326449d78e3a1f1b9886fe3f`
-- PPT SHA-256（渲染后）：`8a543a93f01b9986fcf864ddd90322ccf808881f326449d78e3a1f1b9886fe3f`
+- PPT SHA-256（渲染前）：`65ad810ca8c7d3f06317a203a4df7be3d32d0cbdcfb33d8f7694c6a1b0d5568c`
+- PPT SHA-256（渲染后）：`65ad810ca8c7d3f06317a203a4df7be3d32d0cbdcfb33d8f7694c6a1b0d5568c`
