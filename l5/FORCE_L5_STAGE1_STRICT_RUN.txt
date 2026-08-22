@@ -1,2 +1,2 @@
-Trigger strict Stage 1 run after supervisor round4 feedback.
-Run token: 20260822-round4-page23-two-remnants-only
+Trigger strict Stage 1 runner for Stage 2 visual review round1 repair.
+Run token: 20260822-stage2-round1-visual-repair
