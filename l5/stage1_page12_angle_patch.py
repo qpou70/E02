@@ -44,13 +44,20 @@ mask(s,0.72,4.78,1.95,0.48)
 # Cover remaining original English micro-labels exposed after contain-scaling.
 mask(s,3.55,2.60,1.55,0.36)
 mask(s,5.92,2.98,1.30,0.34)
+# Round 4: only remove the two remaining visual remnants on page 23.
+mask(s,7.50,1.68,0.42,0.18)
 mask(s,4.42,4.78,1.12,0.34)
-textbox(s,4.68,4.84,0.62,0.22,"图 3.2",8.4,False,GRAY,PP_ALIGN.CENTER,margin=0)
 '''
 count = text.count(anchor)
 if count != 1:
     raise RuntimeError(f'Expected one lower-caption anchor, got {count}')
 text = text.replace(anchor, insert)
 
+fig_caption = 'textbox(s,4.68,4.84,0.62,0.22,"图 3.2",8.4,False,GRAY,PP_ALIGN.CENTER,margin=0)\n'
+count = text.count(fig_caption)
+if count != 1:
+    raise RuntimeError(f'Expected one page-23 figure-caption textbox to remove, got {count}')
+text = text.replace(fig_caption, '')
+
 runtime.write_text(text, encoding='utf-8')
-print('page 12 angle overlay intentionally disabled; tightened remaining page 23 English masks')
+print('round4 page 23 final two visual remnants cleaned')
