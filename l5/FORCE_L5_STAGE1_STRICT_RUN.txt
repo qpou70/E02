@@ -1,2 +1,2 @@
-Trigger strict Stage 1 run after supervisor round2 feedback.
-Run token: 20260821-round2-source-crop
+Trigger strict Stage 1 run after supervisor round3 feedback.
+Run token: 20260821-round3-page23-chinese-overlay
