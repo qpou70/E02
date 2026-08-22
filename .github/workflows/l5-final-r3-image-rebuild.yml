@@ -26,7 +26,7 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install python-pptx pymupdf pillow lxml
       - name: Build R3 image rebuild outputs
-        run: python l5/final_qa_image_rebuild_20_22_23.py
+        run: python l5/run_final_qa_image_rebuild_20_22_23_fixed.py
       - name: Commit outputs to working branch
         run: |
           git config user.name 'github-actions[bot]'
