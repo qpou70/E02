@@ -26,5 +26,5 @@
 
 - Worker self-check 状态：passed。
 - Supervisor visual acceptance: pending。
-- PPT SHA-256（渲染前）：`65ad810ca8c7d3f06317a203a4df7be3d32d0cbdcfb33d8f7694c6a1b0d5568c`
-- PPT SHA-256（渲染后）：`65ad810ca8c7d3f06317a203a4df7be3d32d0cbdcfb33d8f7694c6a1b0d5568c`
+- PPT SHA-256（渲染前）：`029ffee1388e76f07fd62dac3c7c5654de9a14e4b878ec7ee8b51803788cec1f`
+- PPT SHA-256（渲染后）：`029ffee1388e76f07fd62dac3c7c5654de9a14e4b878ec7ee8b51803788cec1f`
