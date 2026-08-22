@@ -45,6 +45,7 @@ jobs:
             echo 'No generated changes.'
           else
             git commit -m 'Apply ECE340 L5 final QA R2 page 18 caption fix'
+            git pull --rebase origin l5-stage1-strict-rework
             git push origin HEAD:l5-stage1-strict-rework
           fi
       - name: Upload Final Candidate R2 artifacts
