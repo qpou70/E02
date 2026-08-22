@@ -1,0 +1,23 @@
+name: Supervisor temp Stage2 round3 package
+
+on:
+  pull_request:
+    branches: [master]
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 7306418bbf3d2a9d19053f660d3c896e8cf99dc9
+      - uses: actions/upload-artifact@v4
+        with:
+          name: stage2-round3-supervisor-evidence
+          path: |
+            l5/stage2_visual_review_round3/rendered/
+            l5/stage2_visual_review_round3/comparison/
+            l5/stage2_visual_review_round3/contact_sheet_stage2_round3_pages_16_17_24.jpg
+            l5/BUILD_REPORT_STAGE2_ROUND3.md
+            l5/ECE340_L5_S18_Posted_中文忠实重建_第二阶段视觉返修ROUND3_第16_17_24页.pptx
+          retention-days: 2
