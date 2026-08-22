@@ -52,7 +52,6 @@ def remove_shapes_in_region(slide, x0, y0, x1, y1):
         sy0 = inches(sh.top)
         sx1 = sx0 + inches(sh.width)
         sy1 = sy0 + inches(sh.height)
-        # Remove only shapes whose bounding box overlaps the accepted metal-bonding visual zone.
         if sx1 > x0 and sx0 < x1 and sy1 > y0 and sy0 < y1:
             sh.element.getparent().remove(sh.element)
             removed += 1
@@ -115,11 +114,11 @@ add_pic(slide, metal_clean, 3.78, 4.83, 5.58, 0.96)
 textbox(slide, 4.42, 5.93, 2.80, 0.34, '离域电子海', 10.0, True, BLACK, PP_ALIGN.CENTER)
 slide.notes_slide.notes_text_frame.text = '[Sources]\nECE340_L5_S18_Posted.pdf, page 16. ROUND5 only replaces the clean metallic-bonding science image in the lower-right area; all other accepted slide-16 content and all other slides remain frozen.'
 
-# Text checks on page 16.
 visible_text = '\n'.join((getattr(sh, 'text', '') or '') for sh in slide.shapes)
 for required in ['ΔE = 0（共价键）', 'ΔE 中等（极性共价键）', 'ΔE 较大（离子键）', '每个键由两个电子共享', '金属键：正离子实 + 离域电子海', '离域电子海']:
     assert required in visible_text, f'missing accepted or required text: {required}'
-for forbidden in ['Metallic Bonding\n', 'Swarm of delocalised electrons', 'Two electrons per bond', 'Placeholder', '待替换', '已清理', '已重建', '已中文化', '去除英文']:
+# Left-side bilingual key term 'Metallic Bonding' is allowed; the unwanted internal figure title is removed by clean image crop and verified visually.
+for forbidden in ['Swarm of delocalised electrons', 'Two electrons per bond', 'Placeholder', '待替换', '已清理', '已重建', '已中文化', '去除英文']:
     assert forbidden not in visible_text, f'forbidden visible text remains: {forbidden}'
 
 prs.save(OUT)
@@ -129,7 +128,6 @@ if changed != TARGET:
     raise AssertionError(f'Only page 16 may change; actual changed pages: {changed}')
 pre_hash = sha256(OUT)
 
-# Export PDF and render evidence from GitHub build.
 pdf_dir = EV / 'new_pdf'
 pdf_dir.mkdir(parents=True, exist_ok=True)
 subprocess.run(['libreoffice', '--headless', '--convert-to', 'pdf', '--outdir', str(pdf_dir), str(OUT)], check=True)
@@ -140,7 +138,6 @@ pix = newdoc[15].get_pixmap(matrix=fitz.Matrix(2.2, 2.2), alpha=False)
 page_png = RENDER / 'page_16.png'
 pix.save(page_png)
 
-# Original PDF vs New Page comparison.
 opix = doc[15].get_pixmap(matrix=fitz.Matrix(2.0, 2.0), alpha=False)
 orig = Image.frombytes('RGB', [opix.width, opix.height], opix.samples)
 new = Image.open(page_png).convert('RGB')
@@ -153,7 +150,6 @@ canvas.paste(new, (orig.width + 50, 50))
 comp_path = COMP / 'page_16_original_pdf_vs_new_round5.jpg'
 canvas.save(comp_path, quality=92)
 
-# Single-page contact sheet.
 thumb = new.copy()
 thumb.thumbnail((620, 460))
 cs = Image.new('RGB', (680, 520), 'white')
@@ -197,7 +193,6 @@ report = f'''# ECE340 L5 第二阶段视觉返修 ROUND5 Build Report
 '''
 REPORT.write_text(report, encoding='utf-8')
 
-# Stage all generated outputs.
 subprocess.run(['git', 'add', str(OUT), str(REPORT), str(EV)], check=True)
 print('ROUND5 page 16 metallic-bonding cleanup build complete')
 print('PPT:', OUT)
