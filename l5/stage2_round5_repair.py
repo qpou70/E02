@@ -45,14 +45,22 @@ def inches(value):
     return value / 914400
 
 
-def remove_shapes_in_region(slide, x0, y0, x1, y1):
+def remove_shapes_in_region_by_center(slide, x0, y0, x1, y1):
+    """Remove only objects visually centered inside the lower-right metallic-bonding zone.
+
+    This avoids disturbing the already accepted Delta-E electron-cloud image above the zone.
+    """
     removed = 0
     for sh in list(slide.shapes):
         sx0 = inches(sh.left)
         sy0 = inches(sh.top)
         sx1 = sx0 + inches(sh.width)
         sy1 = sy0 + inches(sh.height)
-        if sx1 > x0 and sx0 < x1 and sy1 > y0 and sy0 < y1:
+        cx = (sx0 + sx1) / 2
+        cy = (sy0 + sy1) / 2
+        overlaps = sx1 > x0 and sx0 < x1 and sy1 > y0 and sy0 < y1
+        center_inside = x0 <= cx <= x1 and y0 <= cy <= y1
+        if overlaps and center_inside:
             sh.element.getparent().remove(sh.element)
             removed += 1
     return removed
@@ -102,15 +110,15 @@ slide = prs.slides[15]
 # Only replace the right-lower metallic-bonding scientific figure area.
 # Keep the accepted left-side four text boxes, upper lattice figure, the Chinese shared-electron note,
 # and the three Delta-E electron-cloud labels/figures intact.
-removed = remove_shapes_in_region(slide, 3.60, 4.46, 9.55, 6.55)
+removed = remove_shapes_in_region_by_center(slide, 3.60, 3.95, 9.55, 6.55)
 
 # Crop only the true metallic-bonding science region from original PDF page 16:
 # left positive cores + orange delocalised electrons, centre red arrow, right electron cloud + positive cores.
-# The crop excludes original English title, original English note, long caption, and external whitespace.
-metal_clean = render_crop(doc, 16, (405, 462, 670, 503), 'round5_p16_metallic_science_clean.png', 380)
+# This crop excludes original English title, original English note, long caption, surrounding border, and external whitespace.
+metal_clean = render_crop(doc, 16, (418, 462, 660, 503), 'round5_p16_metallic_science_clean.png', 380)
 
 textbox(slide, 3.86, 4.50, 5.25, 0.24, '金属键：正离子实 + 离域电子海', 9.2, True, NAVY, PP_ALIGN.CENTER)
-add_pic(slide, metal_clean, 3.78, 4.83, 5.58, 0.96)
+add_pic(slide, metal_clean, 3.82, 4.83, 5.50, 0.96)
 textbox(slide, 4.42, 5.93, 2.80, 0.34, '离域电子海', 10.0, True, BLACK, PP_ALIGN.CENTER)
 slide.notes_slide.notes_text_frame.text = '[Sources]\nECE340_L5_S18_Posted.pdf, page 16. ROUND5 only replaces the clean metallic-bonding science image in the lower-right area; all other accepted slide-16 content and all other slides remain frozen.'
 
@@ -174,7 +182,7 @@ report = f'''# ECE340 L5 第二阶段视觉返修 ROUND5 Build Report
 
 - 从 Original PDF 第 16 页重新干净裁取金属键科学图的实际科学区域。
 - 裁取内容只包括：左侧正离子实与小橙色离域电子、中央红色箭头、右侧电子云中的正离子实。
-- 不裁入 `Metallic Bonding`、`Swarm of delocalised electrons`、英文长段说明或原图外部空白。
+- 不裁入 `Metallic Bonding`、`Swarm of delocalised electrons`、英文长段说明、原图边框或原图外部空白。
 - 保留中文标题 `金属键：正离子实 + 离域电子海` 与中文说明 `离域电子海`。
 - 保持三幅 ΔE 标签和 `每个键由两个电子共享` 不变。
 
