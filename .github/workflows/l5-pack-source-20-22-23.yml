@@ -1,0 +1,33 @@
+name: Package L5 source pages 20 22 23
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+    paths:
+      - '.github/workflows/l5-pack-source-20-22-23.yml'
+      - 'l5/FORCE_L5_SOURCE_PACKAGE_20_22_23.txt'
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: l5-stage1-strict-rework
+      - name: Prepare artifact
+        run: |
+          mkdir -p source_pages
+          cp l5/stage1_source_reference/original_pdf_page_20.png source_pages/original_pdf_page_20.png
+          cp l5/stage1_source_reference/original_pdf_page_22.png source_pages/original_pdf_page_22.png
+          cp l5/stage1_source_reference/original_pdf_page_23.png source_pages/original_pdf_page_23.png
+          cp l5/ECE340_L5_S18_Posted_中文忠实重建_最终候选版_R2_第8-24页.pptx source_pages/R2_base.pptx
+      - name: Upload source pages
+        uses: actions/upload-artifact@v4
+        with:
+          name: l5-source-pages-20-22-23
+          path: source_pages/
+          retention-days: 3
