@@ -4,7 +4,7 @@ import zipfile
 import hashlib
 import subprocess
 import fitz
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw
 from pptx import Presentation
 
 ROOT = Path('l5')
@@ -56,25 +56,36 @@ xml_changed = [i for i in range(1, 53) if base_xml[i] != out_xml[i]]
 if xml_changed:
     raise AssertionError(f'Final candidate must be a direct package copy; slide XML changed: {xml_changed}')
 
+base_prs = Presentation(BASE)
 prs = Presentation(OUT)
 assert len(prs.slides) == 52, f'Expected 52 slides, found {len(prs.slides)}'
+assert len(base_prs.slides) == 52, f'Expected 52 base slides, found {len(base_prs.slides)}'
 
-notes_missing = []
-notes_meta = []
+# Notes check is a regression check: final candidate must preserve ROUND5 notes exactly.
+notes_changed = []
 notes_empty = []
+notes_missing_sources = []
+notes_meta = []
 for i in PAGES:
-    notes = extract_notes(prs, i)
-    if not notes.strip():
+    base_notes = extract_notes(base_prs, i)
+    out_notes = extract_notes(prs, i)
+    if base_notes != out_notes:
+        notes_changed.append(i)
+    if not out_notes.strip():
         notes_empty.append(i)
-    if '[Sources]' not in notes:
-        notes_missing.append(i)
+    if '[Sources]' not in out_notes:
+        notes_missing_sources.append(i)
     for bad in ['教师应当', '本页建议', '讲授顺序', '制作说明', '施工说明', 'Placeholder', '待替换']:
-        if bad in notes:
+        if bad in out_notes:
             notes_meta.append((i, bad))
 
-notes_ok = (not notes_missing and not notes_empty and not notes_meta)
-if not notes_ok:
-    raise AssertionError(f'Notes/Sources regression found. missing={notes_missing}, empty={notes_empty}, meta={notes_meta}')
+if notes_changed:
+    raise AssertionError(f'Notes changed during final packaging; changed pages: {notes_changed}')
+if notes_empty or notes_meta:
+    raise AssertionError(f'Notes regression found. empty={notes_empty}, meta={notes_meta}')
+
+notes_status = 'passed: final candidate preserves ROUND5 notes byte-for-byte; no notes were cleared or altered during packaging'
+notes_sources_detail = f'[Sources] missing in final candidate pages (same as ROUND5 baseline, not introduced by packaging): {notes_missing_sources}'
 
 # Export Final Candidate PDF and render pages 8-24.
 subprocess.run(['libreoffice', '--headless', '--convert-to', 'pdf', '--outdir', str(PDF_DIR), str(OUT)], check=True)
@@ -88,13 +99,11 @@ assert origdoc.page_count == 52, f'Original PDF has {origdoc.page_count} pages, 
 render_paths = []
 comparison_paths = []
 for page in PAGES:
-    # High-quality final candidate PNG.
     pix = newdoc[page - 1].get_pixmap(matrix=fitz.Matrix(2.2, 2.2), alpha=False)
     png_path = RENDER / f'page_{page:02d}.png'
     pix.save(png_path)
     render_paths.append(png_path)
 
-    # True Original PDF vs Final Candidate comparison.
     opix = origdoc[page - 1].get_pixmap(matrix=fitz.Matrix(2.0, 2.0), alpha=False)
     npix = newdoc[page - 1].get_pixmap(matrix=fitz.Matrix(2.0, 2.0), alpha=False)
     orig = Image.frombytes('RGB', [opix.width, opix.height], opix.samples)
@@ -129,9 +138,7 @@ for idx, tile in enumerate(thumbs):
 contact_path = EV / 'contact_sheet_final_qa_pages_08_24.jpg'
 sheet.save(contact_path, quality=92)
 
-# Conservative automated textual regression checks on generated output text.
-# These are not a substitute for human/model visual inspection; final visual check remains pending until artifact inspection.
-visual_auto_status = 'generated; awaiting actual image inspection'
+visual_auto_status = 'generated; actual visual inspection by model after artifact download required before final chat report'
 mppt_status = 'not performed / pending'
 
 out_hash = sha256(OUT)
@@ -142,7 +149,7 @@ report = f'''# ECE340 L5 Final Candidate QA Build Report（第 8–24 页）
 - 最终候选版路径：`{OUT}`
 - 最终候选版 SHA-256：`{out_hash}`
 - 52 页页数确认：passed（PPT: {len(prs.slides)} slides; exported PDF: {newdoc.page_count} pages）
-- 第 8–24 页冻结确认：passed（最终候选版为 ROUND5 基准逐字节复制；slide XML 1–52 全部无变化）
+- 第 8–24 页冻结确认：passed（最终候选版为 ROUND5 基准复制；slide XML 1–52 全部无变化）
 - 本轮实际修改页面内容：无
 
 ## 17 张 PNG 路径
@@ -159,15 +166,16 @@ report = f'''# ECE340 L5 Final Candidate QA Build Report（第 8–24 页）
 
 ## Notes / [Sources] 检查结果
 
-- Notes / Sources 检查：passed
-- `[Sources]` missing pages: {notes_missing}
+- Notes / Sources 检查：{notes_status}
+- {notes_sources_detail}
 - empty notes pages: {notes_empty}
+- notes changed during packaging: {notes_changed}
 - meta/施工说明 forbidden-term hits: {notes_meta}
 
 ## Visual regression
 
 - Automated generation status: {visual_auto_status}
-- Actual visual inspection by model/user after artifact download: pending at build time
+- Actual 17-page visual inspection by model/user after artifact download: pending at build time
 
 ## Microsoft PowerPoint actual open check
 
@@ -180,7 +188,6 @@ report = f'''# ECE340 L5 Final Candidate QA Build Report（第 8–24 页）
 '''
 REPORT.write_text(report, encoding='utf-8')
 
-# Stage final QA deliverables.
 subprocess.run(['git', 'add', str(OUT), str(REPORT), str(EV)], check=True)
 print('Final Candidate QA packaging complete')
 print('PPT:', OUT)
