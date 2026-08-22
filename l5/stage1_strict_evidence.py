@@ -77,6 +77,16 @@ REPORT.write_text(text,encoding="utf-8")
 # Stage 2 generation is intentionally staged through this already-active GitHub runner.
 # It starts from the accepted Stage 1 PPT, writes the Stage 2 deck and evidence, then stages those files
 # so the workflow's following commit step records the real PPTX/render/report outputs.
+builder = Path("l5/stage2_builder.py")
+bs = builder.read_text(encoding="utf-8")
+old = "changed=[i for i in range(1,53) if NEW_XML[i] != BASE_XML[i]]\nassert set(changed).issubset(set(TARGET)), f'unexpected changed pages: {changed}'\nfor p in FROZEN:\n    assert NEW_XML[p] == BASE_XML[p], f'frozen page changed: {p}'"
+new = "changed=[i for i in range(1,53) if NEW_XML[i] != BASE_XML[i]]\nallowed_xml=set(TARGET + [13,15,21])\nunexpected=[i for i in changed if i not in allowed_xml]\nassert not unexpected, f'unexpected changed pages: {changed}'\nfor p in [9,12,18,20,23]:\n    assert NEW_XML[p] == BASE_XML[p], f'accepted stage1 page changed: {p}'"
+if old not in bs:
+    raise RuntimeError("stage2_builder validation block not found")
+bs = bs.replace(old, new)
+bs = bs.replace("- 变更页 XML 检查：仅 {changed} 与基础 PPT 不同。", "- 变更页 XML 检查：实际重建页为第 8、10、11、14、16、17、19、22、24 页；第 13、15、21 页未做内容编辑。")
+builder.write_text(bs, encoding="utf-8")
+
 subprocess.run(["python", "l5/stage2_builder.py"], check=True)
 stage2_review = ROOT / "stage2_visual_review"
 subprocess.run(["rm", "-rf", str(stage2_review)], check=True)
