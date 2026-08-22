@@ -1,4 +1,4 @@
-name: Run ECE340 L5 Stage 2 ROUND3 repair
+name: Run ECE340 L5 Stage 2 ROUND4 repair
 
 on:
   workflow_dispatch:
@@ -6,22 +6,20 @@ on:
     branches: [l5-stage1-strict-rework]
     paths:
       - '.github/workflows/run-l5-stage1-strict.yml'
-      - 'l5/stage2_round3_repair.py'
-      - 'l5/stage2_round3_runtime_patch.py'
+      - 'l5/stage2_round4_repair.py'
       - 'l5/FORCE_L5_STAGE1_STRICT_RUN.txt'
   pull_request:
     branches: [master]
     paths:
       - '.github/workflows/run-l5-stage1-strict.yml'
-      - 'l5/stage2_round3_repair.py'
-      - 'l5/stage2_round3_runtime_patch.py'
+      - 'l5/stage2_round4_repair.py'
       - 'l5/FORCE_L5_STAGE1_STRICT_RUN.txt'
 
 permissions:
   contents: write
 
 concurrency:
-  group: l5-stage2-round3-visual-repair
+  group: l5-stage2-round4-visual-repair
   cancel-in-progress: true
 
 jobs:
@@ -37,29 +35,27 @@ jobs:
           sudo apt-get install -y libreoffice fonts-noto-cjk fonts-dejavu-core
           python -m pip install --upgrade pip
           python -m pip install python-pptx pymupdf pillow lxml
-      - name: Build Stage 2 ROUND3 PPT and evidence
-        run: |
-          python l5/stage2_round3_runtime_patch.py
-          python l5/stage2_round3_repair.py
-      - name: Commit Stage 2 ROUND3 outputs
+      - name: Build Stage 2 ROUND4 PPT and evidence
+        run: python l5/stage2_round4_repair.py
+      - name: Commit Stage 2 ROUND4 outputs
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           if git diff --cached --quiet; then
             echo 'No generated changes.'
           else
-            git commit -m 'Apply Stage 2 ROUND3 visual repair outputs'
+            git commit -m 'Apply Stage 2 ROUND4 page 16 visual repair outputs'
             git push origin HEAD:l5-stage1-strict-rework
           fi
-      - name: Upload Stage 2 ROUND3 visual artifacts
+      - name: Upload Stage 2 ROUND4 visual artifacts
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: l5-stage2-round3-visual-review
+          name: l5-stage2-round4-visual-review
           path: |
-            l5/ECE340_L5_S18_Posted_中文忠实重建_第二阶段视觉返修ROUND3_第16_17_24页.pptx
-            l5/BUILD_REPORT_STAGE2_ROUND3.md
-            l5/stage2_visual_review_round3/rendered/*.png
-            l5/stage2_visual_review_round3/comparison/*.jpg
-            l5/stage2_visual_review_round3/contact_sheet_stage2_round3_pages_16_17_24.jpg
+            l5/ECE340_L5_S18_Posted_中文忠实重建_第二阶段视觉返修ROUND4_第16页.pptx
+            l5/BUILD_REPORT_STAGE2_ROUND4.md
+            l5/stage2_visual_review_round4/rendered/page_16.png
+            l5/stage2_visual_review_round4/comparison/page_16_original_pdf_vs_new_round4.jpg
+            l5/stage2_visual_review_round4/contact_sheet_stage2_round4_page_16.jpg
           retention-days: 7
