@@ -1,0 +1,2 @@
+Trigger strict Stage 1 runner for Stage 2 visual review round1 repair.
+Run token: 20260822-stage2-round1-visual-repair

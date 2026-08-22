@@ -1,0 +1,80 @@
+[
+  {
+    "xref": 280,
+    "bbox": [
+      36.07,
+      36.0,
+      756.07,
+      114.87
+    ],
+    "width": 2200,
+    "height": 241,
+    "bpc": 8,
+    "cs": "ICCBased(RGB,Generic RGB Profile)"
+  },
+  {
+    "xref": 0,
+    "bbox": [
+      36.0,
+      36.0,
+      757.0,
+      110.0
+    ],
+    "width": 721,
+    "height": 74,
+    "bpc": 8,
+    "cs": "DeviceRGB"
+  },
+  {
+    "xref": 283,
+    "bbox": [
+      36.07,
+      106.69,
+      756.07,
+      126.0
+    ],
+    "width": 2200,
+    "height": 59,
+    "bpc": 8,
+    "cs": "ICCBased(RGB,Generic RGB Profile)"
+  },
+  {
+    "xref": 0,
+    "bbox": [
+      36.0,
+      109.0,
+      757.0,
+      121.0
+    ],
+    "width": 721,
+    "height": 12,
+    "bpc": 8,
+    "cs": "DeviceRGB"
+  },
+  {
+    "xref": 286,
+    "bbox": [
+      96.07,
+      126.0,
+      696.07,
+      576.0
+    ],
+    "width": 2000,
+    "height": 1500,
+    "bpc": 8,
+    "cs": "ICCBased(RGB,sRGB IEC61966-2.1)"
+  },
+  {
+    "xref": 115,
+    "bbox": [
+      150.32,
+      540.0,
+      641.7,
+      567.75
+    ],
+    "width": 1365,
+    "height": 77,
+    "bpc": 8,
+    "cs": "ICCBased(RGB,sRGB IEC61966-2.1)"
+  }
+]

@@ -1,0 +1,404 @@
+name: Build ECE340 L5 strict stage1 pages 09 12 18 20 23
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [l5-stage1-strict-rework]
+    paths:
+      - '.github/workflows/build-l5-stage1-strict.yml'
+      - 'l5/FORCE_L5_STAGE1_STRICT_BUILD.txt'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: l5-stage1-strict-rework
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libreoffice fonts-noto-cjk fonts-dejavu-core
+          python -m pip install --upgrade pip
+          python -m pip install python-pptx pymupdf pillow lxml
+      - name: Build strict stage1 deck
+        run: |
+          cat > l5/build_stage1_strict.py <<'PY'
+          from pathlib import Path
+          import io, math, re, json, zipfile, hashlib, shutil
+          import fitz
+          from PIL import Image, ImageDraw, ImageFont
+          from pptx import Presentation
+          from pptx.util import Inches, Pt
+          from pptx.enum.text import PP_ALIGN, MSO_VERTICAL_ANCHOR
+          from pptx.enum.shapes import MSO_SHAPE, MSO_CONNECTOR, MSO_SHAPE_TYPE
+          from pptx.dml.color import RGBColor
+
+          ROOT=Path('l5')
+          BASE=ROOT/'ECE340_L5_S18_Posted_中文忠实重建_视觉返修版_第8-24页.pptx'
+          SRC=ROOT/'stage1_source_reference/ECE340_L5_S18_Posted.pdf'
+          OUT=ROOT/'ECE340_L5_S18_Posted_中文忠实重建_第一阶段严格返修_第9_12_18_20_23页.pptx'
+          AS=ROOT/'stage1_strict_assets'; AS.mkdir(exist_ok=True)
+          assert BASE.exists(), BASE
+          assert SRC.exists(), SRC
+          prs=Presentation(BASE)
+          W,H=prs.slide_width, prs.slide_height
+          SW,SH=W/914400,H/914400
+          BLUE=RGBColor(18,60,110); NAVY=RGBColor(28,46,78); PALE=RGBColor(239,245,251)
+          LIGHT=RGBColor(250,252,255); BLACK=RGBColor(28,28,28); GRAY=RGBColor(92,100,112)
+          MID=RGBColor(205,218,233); GOLD=RGBColor(226,174,72); TEAL=RGBColor(46,118,125)
+          WHITE=RGBColor(255,255,255)
+          TARGET=[9,12,18,20,23]
+
+          def clear(slide):
+              for sh in list(slide.shapes):
+                  sh.element.getparent().remove(sh.element)
+
+          def textbox(slide,x,y,w,h,text,size=16,bold=False,color=BLACK,align=PP_ALIGN.LEFT,
+                      fill=None,line=None,margin=5,vert=MSO_VERTICAL_ANCHOR.MIDDLE):
+              sh=slide.shapes.add_textbox(Inches(x),Inches(y),Inches(w),Inches(h))
+              if fill is None: sh.fill.background()
+              else: sh.fill.solid(); sh.fill.fore_color.rgb=fill
+              if line is None: sh.line.fill.background()
+              else: sh.line.color.rgb=line; sh.line.width=Pt(1)
+              tf=sh.text_frame; tf.clear(); tf.word_wrap=True
+              tf.margin_left=tf.margin_right=tf.margin_top=tf.margin_bottom=Pt(margin)
+              tf.vertical_anchor=vert
+              p=tf.paragraphs[0]; p.alignment=align
+              r=p.add_run(); r.text=text; r.font.name='Noto Sans CJK SC'; r.font.size=Pt(size); r.font.bold=bold; r.font.color.rgb=color
+              return sh
+
+          def header(slide,title,en=None):
+              bar=slide.shapes.add_shape(MSO_SHAPE.RECTANGLE,0,0,W,Inches(0.62))
+              bar.fill.solid(); bar.fill.fore_color.rgb=NAVY; bar.line.fill.background()
+              textbox(slide,0.48,0.07,8.8,0.43,title,21,True,WHITE)
+              if en:
+                  textbox(slide,8.7,0.10,4.05,0.36,en,10,False,RGBColor(220,230,242),PP_ALIGN.RIGHT)
+
+          def box(slide,x,y,w,h,text='',size=14,bold=False,fill=LIGHT,line=BLUE,color=BLACK,align=PP_ALIGN.LEFT):
+              sh=slide.shapes.add_shape(MSO_SHAPE.ROUNDED_RECTANGLE,Inches(x),Inches(y),Inches(w),Inches(h))
+              sh.fill.solid(); sh.fill.fore_color.rgb=fill; sh.line.color.rgb=line; sh.line.width=Pt(1.1)
+              tf=sh.text_frame; tf.clear(); tf.word_wrap=True; tf.margin_left=tf.margin_right=Pt(7); tf.margin_top=tf.margin_bottom=Pt(4)
+              tf.vertical_anchor=MSO_VERTICAL_ANCHOR.MIDDLE
+              p=tf.paragraphs[0]; p.alignment=align
+              r=p.add_run(); r.text=text; r.font.name='Noto Sans CJK SC'; r.font.size=Pt(size); r.font.bold=bold; r.font.color.rgb=color
+              return sh
+
+          def rect(slide,x,y,w,h,fill=LIGHT,linec=BLUE,width=1.0):
+              sh=slide.shapes.add_shape(MSO_SHAPE.RECTANGLE,Inches(x),Inches(y),Inches(w),Inches(h))
+              sh.fill.solid(); sh.fill.fore_color.rgb=fill; sh.line.color.rgb=linec; sh.line.width=Pt(width); return sh
+
+          def oval(slide,x,y,w,h,fill=PALE,linec=BLUE,width=1.0):
+              sh=slide.shapes.add_shape(MSO_SHAPE.OVAL,Inches(x),Inches(y),Inches(w),Inches(h))
+              sh.fill.solid(); sh.fill.fore_color.rgb=fill; sh.line.color.rgb=linec; sh.line.width=Pt(width); return sh
+
+          def line(slide,x1,y1,x2,y2,color=BLUE,width=1.5,arrow=False,dash=False):
+              c=slide.shapes.add_connector(MSO_CONNECTOR.STRAIGHT,Inches(x1),Inches(y1),Inches(x2),Inches(y2))
+              c.line.color.rgb=color; c.line.width=Pt(width)
+              if arrow:
+                  try: c.line.end_arrowhead=True
+                  except Exception: pass
+              if dash:
+                  try: c.line.dash_style='dash'
+                  except Exception: pass
+              return c
+
+          def add_picture_contain(slide,path,x,y,w,h):
+              path=Path(path); assert path.exists(), path
+              im=Image.open(path); iw,ih=im.size; ratio=min(w/iw,h/ih); pw,ph=iw*ratio,ih*ratio
+              px=x+(w-pw)/2; py=y+(h-ph)/2
+              return slide.shapes.add_picture(str(path),Inches(px),Inches(py),Inches(pw),Inches(ph))
+
+          def render_crop(page,rect,out,dpi=220):
+              out=Path(out); out.parent.mkdir(parents=True,exist_ok=True)
+              pix=page.get_pixmap(matrix=fitz.Matrix(dpi/72,dpi/72),clip=rect,alpha=False)
+              pix.save(out); return out
+
+          def save_image_block(block,out):
+              out=Path(out); out.parent.mkdir(parents=True,exist_ok=True)
+              out.write_bytes(block['image']); return out
+
+          def image_blocks(page):
+              return [b for b in page.get_text('dict').get('blocks',[]) if b.get('type')==1 and b.get('image')]
+
+          def set_notes(slide,text):
+              try:
+                  slide.notes_slide.notes_text_frame.text=text
+              except Exception:
+                  pass
+
+          doc=fitz.open(SRC)
+          assert doc.page_count==52
+
+          # ---------- Page 9 ----------
+          p=9; page=doc[p-1]; s=prs.slides[p-1]; clear(s); header(s,'硅的气相外延（VPE）','Silicon Vapor Phase Epitaxy')
+          box(s,0.62,0.78,5.65,0.52,'SiCl₄ + 2H₂ ⇌ Si + 4HCl',18,False,WHITE,BLUE,BLACK,PP_ALIGN.CENTER)
+          box(s,6.48,0.78,4.95,0.52,'SiH₄ → Si + 2H₂',18,False,WHITE,BLUE,BLACK,PP_ALIGN.CENTER)
+          blocks=image_blocks(page)
+          photo=None
+          if blocks:
+              pw=page.rect.width
+              candidates=[b for b in blocks if ((b['bbox'][0]+b['bbox'][2])/2)<pw*0.5]
+              if candidates:
+                  b=max(candidates,key=lambda q:(q['bbox'][2]-q['bbox'][0])*(q['bbox'][3]-q['bbox'][1]))
+                  ext=b.get('ext','png'); photo=save_image_block(b,AS/f'p09_equipment.{ext}')
+          if photo is None:
+              r=fitz.Rect(page.rect.width*0.04,page.rect.height*0.18,page.rect.width*0.39,page.rect.height*0.72)
+              photo=render_crop(page,r,AS/'p09_equipment_crop.png')
+          rect(s,0.62,1.48,4.05,4.75,WHITE,MID,1.2); add_picture_contain(s,photo,0.74,1.61,3.81,4.10)
+          textbox(s,0.78,5.78,3.75,0.34,'VPE 外延设备',12,True,NAVY,PP_ALIGN.CENTER)
+          # faithful native reactor relationship map
+          rect(s,4.95,1.48,7.72,4.75,RGBColor(248,251,255),BLUE,1.3)
+          textbox(s,7.10,1.58,3.0,0.30,'石英反应腔',13,True,NAVY,PP_ALIGN.CENTER)
+          # gas inlet and flow
+          line(s,5.12,2.28,6.18,2.28,TEAL,2.2,True); textbox(s,5.02,1.92,1.25,0.30,'气体入口',11,True,TEAL,PP_ALIGN.CENTER)
+          for xx in [6.25,7.15,8.05,8.95,9.85,10.75]: line(s,xx,2.28,xx+0.65,2.28,TEAL,1.5,True)
+          # baffle / flow conditioner
+          rect(s,6.20,1.95,0.18,1.10,RGBColor(235,224,190),GOLD,1.0)
+          textbox(s,5.70,3.03,1.15,0.30,'挡流板',10,True,GRAY,PP_ALIGN.CENTER)
+          line(s,6.18,3.05,6.28,2.60,GRAY,1.0,True)
+          # wafers on susceptor
+          rect(s,7.30,3.76,3.25,0.24,RGBColor(112,122,135),GRAY,1.0)
+          textbox(s,8.05,4.02,1.75,0.30,'基座（Susceptor）',10,True,GRAY,PP_ALIGN.CENTER)
+          for xx in [7.52,8.35,9.18,10.01]:
+              oval(s,xx,3.39,0.58,0.22,RGBColor(194,224,246),BLUE,0.8)
+          textbox(s,8.20,3.04,1.65,0.30,'硅片 / 晶圆',11,True,NAVY,PP_ALIGN.CENTER)
+          line(s,8.95,3.34,9.45,3.48,NAVY,1.0,True)
+          # pedestal/support
+          rect(s,8.63,4.00,0.58,1.02,RGBColor(205,210,216),GRAY,1.0)
+          textbox(s,9.35,4.43,1.50,0.30,'支座 / Pedestal',10,True,GRAY)
+          line(s,9.34,4.53,9.16,4.48,GRAY,1.0,True)
+          # RF heating coils
+          for i in range(5):
+              y=4.25+i*0.26; line(s,7.15,y,8.30,y+0.15,GOLD,1.8); line(s,9.55,y+0.15,10.70,y,GOLD,1.8)
+          textbox(s,6.75,5.58,2.0,0.34,'RF 加热',11,True,GOLD,PP_ALIGN.CENTER)
+          line(s,8.10,5.58,8.35,5.02,GOLD,1.1,True)
+          # exhaust
+          line(s,10.82,2.28,12.45,2.28,TEAL,2.2,True); textbox(s,11.30,1.92,1.05,0.30,'排气口',11,True,TEAL,PP_ALIGN.CENTER)
+          textbox(s,5.42,6.32,6.55,0.42,'气流由入口进入反应腔，流经晶圆表面后从排气口排出；晶圆置于受 RF 加热的基座上。',13,False,BLACK,PP_ALIGN.CENTER)
+          set_notes(s,'VPE 中，反应气体沿反应腔流过加热的硅片表面。卤化物路线与硅烷热解路线的反应式按原页保留。\n[Sources]\nECE340_L5_S18_Posted.pdf, page 9.')
+
+          # ---------- Page 12 ----------
+          p=12; page=doc[p-1]; s=prs.slides[p-1]; clear(s); header(s,'分子束外延（MBE）','Molecular Beam Epitaxy')
+          rect(s,0.60,0.90,6.15,5.92,RGBColor(248,251,255),BLUE,1.2)
+          textbox(s,2.00,1.02,3.30,0.34,'超高真空生长腔',14,True,NAVY,PP_ALIGN.CENTER)
+          # substrate and holder
+          rect(s,2.66,1.62,2.05,0.28,RGBColor(181,214,242),BLUE,1.0)
+          textbox(s,2.63,1.95,2.12,0.30,'GaAs 衬底',11,True,NAVY,PP_ALIGN.CENTER)
+          rect(s,3.25,1.32,0.88,0.18,RGBColor(180,185,193),GRAY,0.9)
+          textbox(s,4.25,1.28,1.35,0.28,'衬底支架',10,False,GRAY)
+          line(s,4.28,1.45,4.04,1.48,GRAY,1.0,True)
+          # source cells and shutters
+          srcs=[('Si',0.95),('Al',1.82),('Ga',2.69),('As',3.56),('Be',4.43)]
+          for lab,x in srcs:
+              rect(s,x,5.58,0.52,0.54,RGBColor(236,239,243),GRAY,1.0)
+              textbox(s,x,5.66,0.52,0.22,lab,9,True,NAVY,PP_ALIGN.CENTER)
+              # shutter
+              line(s,x+0.03,5.25,x+0.49,5.08,GRAY,1.5)
+              # molecular beam
+              line(s,x+0.26,5.02,3.56,2.05,GOLD,1.15,True)
+          textbox(s,0.92,6.20,4.05,0.30,'束源（Si / Al / Ga / As / Be）',10,True,GRAY,PP_ALIGN.CENTER)
+          textbox(s,4.85,4.92,1.34,0.34,'快门',10,True,GRAY,PP_ALIGN.CENTER)
+          line(s,4.95,5.14,4.58,5.12,GRAY,1.0,True)
+          textbox(s,1.48,3.30,1.70,0.32,'分子束',11,True,GOLD,PP_ALIGN.CENTER)
+          line(s,2.85,3.46,3.22,3.05,GOLD,1.0,True)
+          # real right micrograph
+          blocks=image_blocks(page); micro=None
+          if blocks:
+              pw=page.rect.width
+              candidates=[b for b in blocks if ((b['bbox'][0]+b['bbox'][2])/2)>pw*0.50]
+              if candidates:
+                  b=max(candidates,key=lambda q:(q['bbox'][2]-q['bbox'][0])*(q['bbox'][3]-q['bbox'][1]))
+                  micro=save_image_block(b,AS/f"p12_micro.{b.get('ext','png')}")
+          if micro is None:
+              r=fitz.Rect(page.rect.width*0.52,page.rect.height*0.16,page.rect.width*0.97,page.rect.height*0.88)
+              micro=render_crop(page,r,AS/'p12_micro_crop.png')
+          rect(s,6.95,0.90,5.75,5.92,WHITE,MID,1.2); add_picture_contain(s,micro,7.10,1.05,5.45,5.55)
+          set_notes(s,'左图表示多个束源经快门形成指向衬底的分子束，保留 Si、Al、Ga、As、Be 与衬底的对应关系。右图使用原页真实显微图，保留 4×4、GaAs substrate、10 nm、<100> 信息。\n[Sources]\nECE340_L5_S18_Posted.pdf, page 12.')
+
+          # ---------- Page 18 ----------
+          p=18; page=doc[p-1]; s=prs.slides[p-1]; clear(s); header(s,'硅的芯层电子与价电子','Silicon Core and Valence Electrons')
+          body=render_crop(page,fitz.Rect(18,48,page.rect.width-18,page.rect.height-36),AS/'p18_source_body.png',240)
+          rect(s,0.55,0.83,12.25,6.25,WHITE,MID,1.0); add_picture_contain(s,body,0.68,0.96,11.99,5.98)
+          set_notes(s,'本页两幅高信息密度图直接保留原图，避免重新绘制造成关系丢失。左图需讲解 +14 原子核、芯层电子与价电子；右图需讲解 1s/2s/2p/3s/3p、价轨道、首次激发轨道、价能级以及电离/零能级的相对关系。\n[Sources]\nECE340_L5_S18_Posted.pdf, page 18.')
+
+          # ---------- Page 20 ----------
+          p=20; page=doc[p-1]; s=prs.slides[p-1]; clear(s); header(s,'sp³ 杂化与四面体几何','sp³ Hybridization')
+          body=render_crop(page,fitz.Rect(18,48,page.rect.width-18,page.rect.height-38),AS/'p20_source_body.png',250)
+          rect(s,0.55,0.83,12.25,6.25,WHITE,MID,1.0); add_picture_contain(s,body,0.68,0.96,11.99,5.98)
+          set_notes(s,'原页四个 sp³ 杂化波函数以及 109.5° 四面体键角直接以源页正文裁图保留，不重新誊写系数。原页还指出应变会扭曲键角，氨等分子的键角略小。\n[Sources]\nECE340_L5_S18_Posted.pdf, page 20.')
+
+          # ---------- Page 23 ----------
+          p=23; s=prs.slides[p-1]; clear(s); header(s,'氢分子的成键与反键轨道','Bonding / Antibonding Orbitals in H₂')
+          # state-count panel
+          box(s,0.58,0.88,3.36,2.16,'元素氢：1s¹\nH #1：2 states, 1 electron\nH #2：2 states, 1 electron\nH₂：4 states, 2 electrons',13,False,PALE,BLUE,BLACK)
+          # central energy diagram
+          rect(s,4.22,0.88,5.08,5.95,RGBColor(251,253,255),MID,1.0)
+          textbox(s,5.42,1.02,2.65,0.34,'分子轨道能级',14,True,NAVY,PP_ALIGN.CENTER)
+          # atomic levels
+          line(s,4.58,3.82,5.52,3.82,GRAY,1.8); textbox(s,4.46,3.42,1.18,0.30,'H #1 1s',10,True,GRAY,PP_ALIGN.CENTER)
+          line(s,8.00,3.82,8.94,3.82,GRAY,1.8); textbox(s,7.88,3.42,1.18,0.30,'H #2 1s',10,True,GRAY,PP_ALIGN.CENTER)
+          # MO levels
+          line(s,6.05,2.10,7.45,2.10,NAVY,2.2); textbox(s,5.72,1.62,2.08,0.34,'反键 σ*1s',11,True,NAVY,PP_ALIGN.CENTER)
+          line(s,6.05,5.20,7.45,5.20,TEAL,2.2); textbox(s,5.72,5.34,2.08,0.34,'成键 σ1s',11,True,TEAL,PP_ALIGN.CENTER)
+          # correlation lines
+          line(s,5.52,3.82,6.05,2.10,GRAY,1.1); line(s,5.52,3.82,6.05,5.20,GRAY,1.1)
+          line(s,8.00,3.82,7.45,2.10,GRAY,1.1); line(s,8.00,3.82,7.45,5.20,GRAY,1.1)
+          # two electrons in bonding MO
+          textbox(s,6.34,4.65,0.48,0.38,'↑',18,True,TEAL,PP_ALIGN.CENTER); textbox(s,6.72,4.65,0.48,0.38,'↓',18,True,TEAL,PP_ALIGN.CENTER)
+          # energy scale
+          line(s,9.00,5.55,9.00,1.72,NAVY,1.4,True)
+          textbox(s,8.38,1.30,0.78,0.38,'Higher\nEnergy',9,True,NAVY,PP_ALIGN.CENTER)
+          textbox(s,8.38,5.66,0.78,0.38,'Lower\nEnergy',9,True,TEAL,PP_ALIGN.CENTER)
+          # right orbital relationship sketches
+          rect(s,9.56,0.88,3.18,5.95,WHITE,MID,1.0)
+          textbox(s,9.82,1.05,2.65,0.32,'轨道与电子密度',13,True,NAVY,PP_ALIGN.CENTER)
+          # antibonding top: separated phases and node
+          oval(s,9.98,1.72,0.90,0.90,RGBColor(229,239,250),BLUE,1.0); oval(s,11.42,1.72,0.90,0.90,RGBColor(246,236,220),GOLD,1.0)
+          textbox(s,10.27,1.96,0.32,0.28,'+',12,True,NAVY,PP_ALIGN.CENTER); textbox(s,11.71,1.96,0.32,0.28,'−',12,True,GOLD,PP_ALIGN.CENTER)
+          line(s,11.14,1.58,11.14,2.82,GRAY,1.0,dash=True)
+          textbox(s,9.85,2.72,2.58,0.55,'反键：两核之间出现节点\n电子不位于两核之间',10,True,NAVY,PP_ALIGN.CENTER)
+          # bonding bottom: overlapping density
+          oval(s,10.02,4.05,1.12,0.95,RGBColor(220,240,238),TEAL,1.0); oval(s,11.18,4.05,1.12,0.95,RGBColor(220,240,238),TEAL,1.0)
+          oval(s,10.72,4.16,0.88,0.72,RGBColor(198,229,225),TEAL,0.8)
+          textbox(s,9.85,5.08,2.58,0.55,'成键：两核之间电子密度增加\n系统能量降低',10,True,TEAL,PP_ALIGN.CENTER)
+          # explanatory correspondence arrows
+          textbox(s,0.62,3.40,3.22,0.82,'两个 H 1s 原子轨道组合后形成两个分子轨道：\n低能成键轨道 + 高能反键轨道。',13,True,BLACK,PP_ALIGN.CENTER,fill=WHITE,line=BLUE)
+          textbox(s,0.62,4.48,3.22,1.42,'H₂ 的 2 个电子在基态优先占据低能成键轨道，因此形成稳定 H–H 键。',13,False,BLACK,PP_ALIGN.CENTER,fill=WHITE,line=TEAL)
+          set_notes(s,'H 原子的两个 1s 状态组合为两个分子轨道。成键轨道能量降低且两核之间电子密度增加；反键轨道能量升高并在两核之间形成节点。H₂ 的两个电子基态占据成键轨道。\n[Sources]\nECE340_L5_S18_Posted.pdf, page 23.')
+
+          # ---------- package validation before save ----------
+          for p in TARGET:
+              slide=prs.slides[p-1]
+              for sh in slide.shapes:
+                  assert sh.left >= 0 and sh.top >= 0 and sh.left+sh.width <= W+1000 and sh.top+sh.height <= H+1000, (p,sh.name)
+          prs.save(OUT)
+
+          # Only target slide XML and notes XML may change.
+          with zipfile.ZipFile(BASE) as zb, zipfile.ZipFile(OUT) as zo:
+              for p in range(1,53):
+                  a=zb.read(f'ppt/slides/slide{p}.xml'); b=zo.read(f'ppt/slides/slide{p}.xml')
+                  if p in TARGET: assert a!=b, f'target slide {p} did not change'
+                  else: assert a==b, f'non-target slide {p} changed unexpectedly'
+              for p in range(1,53):
+                  na=f'ppt/notesSlides/notesSlide{p}.xml'
+                  if na in zb.namelist() and na in zo.namelist() and p not in TARGET:
+                      assert zb.read(na)==zo.read(na), f'non-target notes {p} changed unexpectedly'
+
+          check=Presentation(OUT)
+          banned=['原设备照片','右侧显微图','原图示意','待替换图片','此处保留原图','本页已重建','已删除残留','保留原始信息','为避免 PowerPoint 压字','本页采用中文示意','右图保留','已完成中文化','已重做','已改为']
+          for p in TARGET:
+              slide=check.slides[p-1]
+              texts=[]
+              for sh in slide.shapes:
+                  if sh.shape_type==MSO_SHAPE_TYPE.PLACEHOLDER:
+                      raise AssertionError(f'placeholder on page {p}: {sh.name}')
+                  if getattr(sh,'has_text_frame',False): texts.append(sh.text)
+              joined='\n'.join(texts)
+              for term in banned: assert term not in joined, (p,term)
+          t9='\n'.join(sh.text for sh in check.slides[8].shapes if getattr(sh,'has_text_frame',False))
+          assert 'SiCl₄ + 2H₂ ⇌ Si + 4HCl' in t9
+          assert 'SiH₄ → Si + 2H₂' in t9
+          t23='\n'.join(sh.text for sh in check.slides[22].shapes if getattr(sh,'has_text_frame',False))
+          for term in ['H #1：2 states, 1 electron','H₂：4 states, 2 electrons','Higher','Lower','成键','反键']:
+              assert term in t23, term
+          src20=doc[19].get_text('text')
+          for seq in ['ψ 1 = 1','ψ s +ψ px +ψ py +ψ pz','ψ 2 = 1','ψ s −ψ px −ψ py +ψ pz','ψ 3 = 1','ψ s +ψ px −ψ py −ψ pz','ψ 4 = 1','ψ s −ψ px +ψ py −ψ pz','109.5° Bond']:
+              assert seq in src20, seq
+          digest=hashlib.sha256(OUT.read_bytes()).hexdigest()
+          report=ROOT/'BUILD_REPORT_08_24_STAGE1_STRICT.md'
+          report.write_text('\n'.join([
+              '# ECE340 L5 Stage 1 Strict Visual Rework Build Report','',
+              f'- Baseline deck: `{BASE.as_posix()}`',
+              f'- Source PDF: `{SRC.as_posix()}`',
+              f'- Output deck: `{OUT.as_posix()}`',
+              '- Modified pages: 9, 12, 18, 20, 23',
+              '- Unchanged within pages 8–24: 8, 10, 11, 13, 14, 15, 16, 17, 19, 21, 22, 24',
+              '- Unchanged outside stage range: pages 1–7 and 25–52',
+              '- Page 9: retained a real source equipment image; rebuilt VPE reactor with gas inlet/flow, chamber, wafers, susceptor, pedestal/support, exhaust and RF heating; preserved both reactions exactly.',
+              '- Page 12: rebuilt MBE relationship map with Si/Al/Ga/As/Be sources, shutters, molecular beams and substrate; inserted the real source right-side micrograph.',
+              '- Page 18: preserved the complete original two-diagram body as a clean source crop; Chinese explanation moved to speaker notes.',
+              '- Page 20: preserved the original sp3 formula/geometry body as a clean source crop; no formula was retyped or algebraically replaced.',
+              '- Page 23: rebuilt the state-count, energy-correlation, bonding/antibonding and orbital-density relationships as an organized Chinese teaching diagram while retaining required English energy labels.',
+              '- Placeholder status: none on target pages (automated shape-type check passed).',
+              '- Scientific/formula changes: none intended; page 20 uses source-page formula image and page 9 reactions are exact text assertions.',
+              '- Red sticker boxes: none used.',
+              '- Production/construction notes on slides: none (banned-term scan passed).',
+              '- Non-target slide XML: byte-for-byte unchanged.',
+              f'- Output PPT SHA-256 before render validation: `{digest}`',''
+          ]),encoding='utf-8')
+          PY
+          python l5/build_stage1_strict.py
+      - name: Render baseline and new deck, create evidence and validate
+        run: |
+          rm -rf l5/stage1_visual_review_08_24
+          mkdir -p l5/stage1_visual_review_08_24/baseline_pdf l5/stage1_visual_review_08_24/new_pdf \
+                   l5/stage1_visual_review_08_24/rendered l5/stage1_visual_review_08_24/comparison l5/stage1_visual_review_08_24/preview
+          libreoffice --headless --convert-to pdf --outdir l5/stage1_visual_review_08_24/baseline_pdf \
+            'l5/ECE340_L5_S18_Posted_中文忠实重建_视觉返修版_第8-24页.pptx'
+          libreoffice --headless --convert-to pdf --outdir l5/stage1_visual_review_08_24/new_pdf \
+            'l5/ECE340_L5_S18_Posted_中文忠实重建_第一阶段严格返修_第9_12_18_20_23页.pptx'
+          python - <<'PY'
+          from pathlib import Path
+          import fitz, hashlib, zipfile, re
+          from PIL import Image,ImageDraw,ImageFont
+          root=Path('l5/stage1_visual_review_08_24')
+          base=next((root/'baseline_pdf').glob('*.pdf')); new=next((root/'new_pdf').glob('*.pdf'))
+          db=fitz.open(base); dn=fitz.open(new); assert db.page_count==52 and dn.page_count==52
+          targets=[9,12,18,20,23]
+          new_imgs=[]
+          for p in targets:
+              for doc,kind in [(dn,'new'),(db,'base')]:
+                  pix=doc[p-1].get_pixmap(matrix=fitz.Matrix(2.6,2.6),alpha=False)
+                  path=(root/'rendered'/f'page_{p:02d}.png') if kind=='new' else (root/'comparison'/f'_base_{p:02d}.png')
+                  pix.save(path)
+              a=Image.open(root/'comparison'/f'_base_{p:02d}.png').convert('RGB')
+              b=Image.open(root/'rendered'/f'page_{p:02d}.png').convert('RGB')
+              hh=max(a.height,b.height); gap=24; canvas=Image.new('RGB',(a.width+b.width+gap,hh+52),'white')
+              canvas.paste(a,(0,52)); canvas.paste(b,(a.width+gap,52))
+              d=ImageDraw.Draw(canvas); d.text((12,16),f'Original baseline page {p}',fill=(0,0,0)); d.text((a.width+gap+12,16),f'New page {p}',fill=(0,0,0))
+              comp=root/'comparison'/f'page_{p:02d}_original_vs_new.jpg'; canvas.save(comp,quality=90)
+              (root/'comparison'/f'_base_{p:02d}.png').unlink()
+              im=b.copy(); im.thumbnail((360,230)); im.save(root/'preview'/f'page_{p:02d}_preview.jpg',quality=28,optimize=True)
+              new_imgs.append((p,b))
+          # contact sheet: target pages only
+          thumbs=[]
+          for p,im in new_imgs:
+              t=im.copy(); t.thumbnail((520,330)); card=Image.new('RGB',(540,380),'white'); card.paste(t,((540-t.width)//2,10)); ImageDraw.Draw(card).text((16,350),f'Page {p}',fill=(0,0,0)); thumbs.append(card)
+          sheet=Image.new('RGB',(1080,1140),'white')
+          for i,im in enumerate(thumbs): sheet.paste(im,((i%2)*540,(i//2)*380))
+          sheet.save(root/'contact_sheet_stage1_pages_09_12_18_20_23.jpg',quality=90)
+          prev=sheet.copy(); prev.thumbnail((360,380)); prev.save(root/'preview/contact_sheet_preview.jpg',quality=26,optimize=True)
+          ppt=Path('l5/ECE340_L5_S18_Posted_中文忠实重建_第一阶段严格返修_第9_12_18_20_23页.pptx')
+          digest=hashlib.sha256(ppt.read_bytes()).hexdigest()
+          report=Path('l5/BUILD_REPORT_08_24_STAGE1_STRICT.md')
+          text=report.read_text(encoding='utf-8')
+          text += '\n'.join([
+              '- High-resolution renders: `l5/stage1_visual_review_08_24/rendered/page_09.png`, `page_12.png`, `page_18.png`, `page_20.png`, `page_23.png`',
+              '- Original-vs-new comparisons: `l5/stage1_visual_review_08_24/comparison/page_XX_original_vs_new.jpg` for 09/12/18/20/23',
+              '- Contact sheet: `l5/stage1_visual_review_08_24/contact_sheet_stage1_pages_09_12_18_20_23.jpg`',
+              '- Render page count: 52',
+              '- Visual-boundary automated validation: passed (all target shapes within slide bounds before render).',
+              '- Manual visual inspection status: candidate renders generated for supervisor/assistant inspection before completion claim.',
+              f'- Output PPT SHA-256 after render validation: `{digest}`',''
+          ])
+          report.write_text(text,encoding='utf-8')
+          PY
+      - name: Commit stage1 candidate outputs
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- \
+            'l5/ECE340_L5_S18_Posted_中文忠实重建_第一阶段严格返修_第9_12_18_20_23页.pptx' \
+            l5/BUILD_REPORT_08_24_STAGE1_STRICT.md \
+            l5/stage1_strict_assets \
+            l5/stage1_visual_review_08_24
+          if git diff --cached --quiet; then
+            echo 'No generated changes.'
+          else
+            git commit -m 'Generate strict L5 stage1 candidate pages 9 12 18 20 23'
+            git push origin HEAD:l5-stage1-strict-rework
+          fi

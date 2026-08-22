@@ -1,0 +1,28 @@
+name: Debug L5 stage1 slide size
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - '.github/workflows/debug-l5-stage1-size.yml'
+
+jobs:
+  size:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: l5-stage1-strict-rework
+      - name: Print slide size from presentation.xml
+        run: |
+          python - <<'PY'
+          import zipfile, xml.etree.ElementTree as ET
+          p='l5/ECE340_L5_S18_Posted_中文忠实重建_视觉返修版_第8-24页.pptx'
+          with zipfile.ZipFile(p) as z:
+              root=ET.fromstring(z.read('ppt/presentation.xml'))
+          ns={'p':'http://schemas.openxmlformats.org/presentationml/2006/main'}
+          s=root.find('p:sldSz',ns)
+          cx=int(s.attrib['cx']); cy=int(s.attrib['cy'])
+          print('EMU',cx,cy)
+          print('INCHES',cx/914400,cy/914400)
+          PY

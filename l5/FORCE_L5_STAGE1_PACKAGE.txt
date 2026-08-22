@@ -1,0 +1,2 @@
+Package the latest committed Stage 2 visual review evidence for manual inspection.
+Latest stage2-generation candidate: db3b430443edc1f4df78025ea544fd3dd6177b02
