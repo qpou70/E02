@@ -20,7 +20,7 @@
 - 第 16 页：无整套英文 bullet list；无原 PDF 橙色标题条；三组科学配图完整。
 - 第 17 页：表格完整显示到 36 Kr；33 As / 34 Se / 35 Br / 36 Kr 可见；表格底部未裁切。
 - 第 24 页：不存在 `N ↑ Si 原子形成晶体时`；两个 `Total` 已中文化为 `合计`。
-- PPT SHA-256（渲染前）：`4aae68d1887c0df2face67f942f5b97e08452f5eef7701e7e8c0c4752d8b234a`
+- PPT SHA-256（渲染前）：`9ab34ec5f9136c8ec3965956a2203b0a20113bf6b913f4f25ff4c21bddb88fe3`
 
 ## 渲染与证据
 
@@ -31,4 +31,4 @@
 - 渲染 PDF 页数：原始 PDF 52；第二阶段 ROUND3 PPT 导出 PDF 52。
 - Worker self-check: passed.
 - Supervisor visual acceptance: pending.
-- PPT SHA-256（渲染后）：`4aae68d1887c0df2face67f942f5b97e08452f5eef7701e7e8c0c4752d8b234a`
+- PPT SHA-256（渲染后）：`9ab34ec5f9136c8ec3965956a2203b0a20113bf6b913f4f25ff4c21bddb88fe3`
