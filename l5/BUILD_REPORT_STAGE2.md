@@ -19,7 +19,7 @@
 - 红框中文贴纸：无。
 - 施工说明进入学生页：无。
 - 图片非等比拉伸：无；所有图片 contain 等比缩放。
-- PPT SHA-256（渲染前）：`b226f301df59c60f1487651be49e279baba5a21e1618449af577f9779d9efecd`
+- PPT SHA-256（渲染前）：`29c97ae62df6fdf4a4e5621aa1e67435705aa5c57f682066fe14fa028cf277f1`
 
 ## 渲染与证据
 
@@ -30,4 +30,4 @@
 - 渲染 PDF 页数：原始 PDF 52；第二阶段 PPT 导出 PDF 52。
 - Worker self-check: passed.
 - Supervisor visual acceptance: pending.
-- PPT SHA-256（渲染后）：`b226f301df59c60f1487651be49e279baba5a21e1618449af577f9779d9efecd`
+- PPT SHA-256（渲染后）：`29c97ae62df6fdf4a4e5621aa1e67435705aa5c57f682066fe14fa028cf277f1`
