@@ -46,23 +46,31 @@ def inches(value):
 
 
 def remove_shapes_in_region_by_center(slide, x0, y0, x1, y1):
-    """Remove only objects visually centered inside the lower-right metallic-bonding zone.
-
-    This avoids disturbing the already accepted Delta-E electron-cloud image above the zone.
-    """
     removed = 0
     for sh in list(slide.shapes):
-        sx0 = inches(sh.left)
-        sy0 = inches(sh.top)
-        sx1 = sx0 + inches(sh.width)
-        sy1 = sy0 + inches(sh.height)
-        cx = (sx0 + sx1) / 2
-        cy = (sy0 + sy1) / 2
+        sx0 = inches(sh.left); sy0 = inches(sh.top)
+        sx1 = sx0 + inches(sh.width); sy1 = sy0 + inches(sh.height)
+        cx = (sx0 + sx1) / 2; cy = (sy0 + sy1) / 2
         overlaps = sx1 > x0 and sx0 < x1 and sy1 > y0 and sy0 < y1
         center_inside = x0 <= cx <= x1 and y0 <= cy <= y1
         if overlaps and center_inside:
-            sh.element.getparent().remove(sh.element)
-            removed += 1
+            sh.element.getparent().remove(sh.element); removed += 1
+    return removed
+
+
+def remove_residual_strip_by_top(slide, x0, y0, x1, y1, min_top):
+    """Remove orphan strip/title fragments above the metal figure without touching Delta-E clouds.
+
+    The accepted Delta-E cloud image begins higher on the slide, so require the object's own top
+    to be below min_top before deleting it.
+    """
+    removed = 0
+    for sh in list(slide.shapes):
+        sx0 = inches(sh.left); sy0 = inches(sh.top)
+        sx1 = sx0 + inches(sh.width); sy1 = sy0 + inches(sh.height)
+        overlaps = sx1 > x0 and sx0 < x1 and sy1 > y0 and sy0 < y1
+        if overlaps and sy0 >= min_top:
+            sh.element.getparent().remove(sh.element); removed += 1
     return removed
 
 
@@ -76,12 +84,10 @@ def textbox(slide, x, y, w, h, text, size=10, bold=False, color=BLACK, align=PP_
         sh.line.fill.background()
     else:
         sh.line.color.rgb = line; sh.line.width = Pt(0.8)
-    tf = sh.text_frame
-    tf.clear(); tf.word_wrap = True
+    tf = sh.text_frame; tf.clear(); tf.word_wrap = True
     tf.margin_left = tf.margin_right = tf.margin_top = tf.margin_bottom = Pt(margin)
     tf.vertical_anchor = MSO_VERTICAL_ANCHOR.MIDDLE
-    p = tf.paragraphs[0]
-    p.alignment = align
+    p = tf.paragraphs[0]; p.alignment = align
     r = p.add_run(); r.text = text
     r.font.name = 'Noto Sans CJK SC'; r.font.size = Pt(size); r.font.bold = bold; r.font.color.rgb = color
     return sh
@@ -89,16 +95,13 @@ def textbox(slide, x, y, w, h, text, size=10, bold=False, color=BLACK, align=PP_
 
 def render_crop(doc, page_no, coords, name, dpi=360):
     pix = doc[page_no - 1].get_pixmap(matrix=fitz.Matrix(dpi/72, dpi/72), clip=fitz.Rect(*coords), alpha=False)
-    out = ASSET / name
-    pix.save(out)
-    return out
+    out = ASSET / name; pix.save(out); return out
 
 
 def add_pic(slide, path, x, y, w, h):
     with Image.open(path) as im:
         iw, ih = im.size
-    k = min(w / iw, h / ih)
-    pw, ph = iw * k, ih * k
+    k = min(w / iw, h / ih); pw, ph = iw * k, ih * k
     return slide.shapes.add_picture(str(path), Inches(x + (w - pw) / 2), Inches(y + (h - ph) / 2), Inches(pw), Inches(ph))
 
 prs = Presentation(BASE)
@@ -108,13 +111,11 @@ base_xml = slide_xmls(BASE)
 slide = prs.slides[15]
 
 # Only replace the right-lower metallic-bonding scientific figure area.
-# Keep the accepted left-side four text boxes, upper lattice figure, the Chinese shared-electron note,
-# and the three Delta-E electron-cloud labels/figures intact.
-removed = remove_shapes_in_region_by_center(slide, 3.60, 3.95, 9.55, 6.55)
+removed = 0
+removed += remove_shapes_in_region_by_center(slide, 3.60, 3.95, 9.55, 6.55)
+removed += remove_residual_strip_by_top(slide, 3.60, 3.62, 9.55, 4.46, min_top=3.58)
 
-# Crop only the true metallic-bonding science region from original PDF page 16:
-# left positive cores + orange delocalised electrons, centre red arrow, right electron cloud + positive cores.
-# This crop excludes original English title, original English note, long caption, surrounding border, and external whitespace.
+# Crop only the true metallic-bonding science region from original PDF page 16.
 metal_clean = render_crop(doc, 16, (418, 462, 660, 503), 'round5_p16_metallic_science_clean.png', 380)
 
 textbox(slide, 3.86, 4.50, 5.25, 0.24, '金属键：正离子实 + 离域电子海', 9.2, True, NAVY, PP_ALIGN.CENTER)
@@ -125,7 +126,6 @@ slide.notes_slide.notes_text_frame.text = '[Sources]\nECE340_L5_S18_Posted.pdf, 
 visible_text = '\n'.join((getattr(sh, 'text', '') or '') for sh in slide.shapes)
 for required in ['ΔE = 0（共价键）', 'ΔE 中等（极性共价键）', 'ΔE 较大（离子键）', '每个键由两个电子共享', '金属键：正离子实 + 离域电子海', '离域电子海']:
     assert required in visible_text, f'missing accepted or required text: {required}'
-# Left-side bilingual key term 'Metallic Bonding' is allowed; the unwanted internal figure title is removed by clean image crop and verified visually.
 for forbidden in ['Swarm of delocalised electrons', 'Two electrons per bond', 'Placeholder', '待替换', '已清理', '已重建', '已中文化', '去除英文']:
     assert forbidden not in visible_text, f'forbidden visible text remains: {forbidden}'
 
@@ -136,15 +136,12 @@ if changed != TARGET:
     raise AssertionError(f'Only page 16 may change; actual changed pages: {changed}')
 pre_hash = sha256(OUT)
 
-pdf_dir = EV / 'new_pdf'
-pdf_dir.mkdir(parents=True, exist_ok=True)
+pdf_dir = EV / 'new_pdf'; pdf_dir.mkdir(parents=True, exist_ok=True)
 subprocess.run(['libreoffice', '--headless', '--convert-to', 'pdf', '--outdir', str(pdf_dir), str(OUT)], check=True)
 pdf_path = pdf_dir / (OUT.stem + '.pdf')
-newdoc = fitz.open(pdf_path)
-assert newdoc.page_count == 52
+newdoc = fitz.open(pdf_path); assert newdoc.page_count == 52
 pix = newdoc[15].get_pixmap(matrix=fitz.Matrix(2.2, 2.2), alpha=False)
-page_png = RENDER / 'page_16.png'
-pix.save(page_png)
+page_png = RENDER / 'page_16.png'; pix.save(page_png)
 
 opix = doc[15].get_pixmap(matrix=fitz.Matrix(2.0, 2.0), alpha=False)
 orig = Image.frombytes('RGB', [opix.width, opix.height], opix.samples)
@@ -153,19 +150,14 @@ canvas = Image.new('RGB', (orig.width + new.width + 60, max(orig.height, new.hei
 d = ImageDraw.Draw(canvas)
 d.text((10, 10), 'Original PDF page 16', fill=(0, 0, 0))
 d.text((orig.width + 50, 10), 'New Stage 2 ROUND5 page 16', fill=(0, 0, 0))
-canvas.paste(orig, (10, 50))
-canvas.paste(new, (orig.width + 50, 50))
-comp_path = COMP / 'page_16_original_pdf_vs_new_round5.jpg'
-canvas.save(comp_path, quality=92)
+canvas.paste(orig, (10, 50)); canvas.paste(new, (orig.width + 50, 50))
+comp_path = COMP / 'page_16_original_pdf_vs_new_round5.jpg'; canvas.save(comp_path, quality=92)
 
-thumb = new.copy()
-thumb.thumbnail((620, 460))
+thumb = new.copy(); thumb.thumbnail((620, 460))
 cs = Image.new('RGB', (680, 520), 'white')
-d = ImageDraw.Draw(cs)
-d.text((10, 10), 'page 16', fill=(0, 0, 0))
+d = ImageDraw.Draw(cs); d.text((10, 10), 'page 16', fill=(0, 0, 0))
 cs.paste(thumb, ((680 - thumb.width) // 2, 45))
-contact_path = EV / 'contact_sheet_stage2_round5_page_16.jpg'
-cs.save(contact_path, quality=92)
+contact_path = EV / 'contact_sheet_stage2_round5_page_16.jpg'; cs.save(contact_path, quality=92)
 post_hash = sha256(OUT)
 
 report = f'''# ECE340 L5 第二阶段视觉返修 ROUND5 Build Report
@@ -176,7 +168,7 @@ report = f'''# ECE340 L5 第二阶段视觉返修 ROUND5 Build Report
 - 本轮只修改第 16 页右下金属键图区。
 - 其他 slide 冻结：第 8–15、17–24 页；第 1–7、25–52 页。
 - Slide XML 检查：仅第 16 页与 ROUND4 基准不同。
-- 删除对象数量：{removed} 个，仅限右下金属键区域重建。
+- 删除对象数量：{removed} 个，仅限右下金属键区域及其上方残留标题条清理。
 
 ## 第 16 页右下金属键图区处理
 
