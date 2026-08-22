@@ -1,0 +1,52 @@
+name: Archive ECE340 L5 Final R2 to master
+
+on:
+  push:
+    branches: [archive/l5-final-r2-master-copy2]
+    paths:
+      - '.github/workflows/archive-l5-final-r2-to-master.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  archive:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: archive/l5-final-r2-master-copy2
+          fetch-depth: 0
+      - name: Copy final R2 PPTX into master
+        shell: bash
+        run: |
+          set -euo pipefail
+          SRC='l5/ECE340_L5_S18_Posted_中文忠实重建_最终候选版_R2_第8-24页.pptx'
+          test -f "$SRC"
+          cp "$SRC" /tmp/l5-final-r2.pptx
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git fetch origin master
+          git checkout -B archive-master origin/master
+          mkdir -p l5
+          cp /tmp/l5-final-r2.pptx "$SRC"
+          cat > l5/L5_FINAL_CANDIDATE_POINTER.md <<'EOF'
+# ECE340 L5 最终候选文件
+
+当前归档到 `master` 的最终候选主文件：
+
+`l5/ECE340_L5_S18_Posted_中文忠实重建_最终候选版_R2_第8-24页.pptx`
+
+来源 generation commit：
+
+`3d888e10ca0d4fbb21ea14d50c42c21ab7122226`
+EOF
+          git add "$SRC" l5/L5_FINAL_CANDIDATE_POINTER.md
+          if git diff --cached --quiet; then
+            echo 'Final R2 PPTX is already archived on master.'
+          else
+            git commit -m 'Archive ECE340 L5 Final Candidate R2 to master'
+            git push origin HEAD:master
+          fi
