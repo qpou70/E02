@@ -7,12 +7,14 @@ on:
     paths:
       - '.github/workflows/run-l5-stage1-strict.yml'
       - 'l5/final_qa_r1_08_24_repair.py'
+      - 'l5/final_qa_r1_runtime_patch.py'
       - 'l5/FORCE_L5_STAGE1_STRICT_RUN.txt'
   pull_request:
     branches: [master]
     paths:
       - '.github/workflows/run-l5-stage1-strict.yml'
       - 'l5/final_qa_r1_08_24_repair.py'
+      - 'l5/final_qa_r1_runtime_patch.py'
       - 'l5/FORCE_L5_STAGE1_STRICT_RUN.txt'
 
 permissions:
@@ -36,7 +38,9 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install python-pptx pymupdf pillow lxml
       - name: Build Final Candidate R1 QA package
-        run: python l5/final_qa_r1_08_24_repair.py
+        run: |
+          python l5/final_qa_r1_runtime_patch.py
+          python l5/final_qa_r1_08_24_repair.py
       - name: Commit Final Candidate R1 QA outputs
         run: |
           git config user.name 'github-actions[bot]'
