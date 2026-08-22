@@ -1,2 +1,2 @@
 Trigger L5 final candidate R3 image rebuild for pages 20 22 23.
-Run token: 20260822-finalqa-image-rebuild-20-22-23-run2
+Run token: 20260822-finalqa-image-rebuild-fixed-bootstrap-run3
