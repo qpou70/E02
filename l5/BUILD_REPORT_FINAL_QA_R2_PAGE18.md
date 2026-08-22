@@ -3,7 +3,7 @@
 - Supervisor feedback source: `l5/SUPERVISOR_FINAL_QA_VISUAL_REVIEW_FEEDBACK_ROUND2.md`, commit `28e772661c359167ed8baffd27f95cd82b8d27fb`.
 - 基准 Final Candidate R1：`l5/ECE340_L5_S18_Posted_中文忠实重建_最终候选版_R1_第8-24页.pptx`
 - 新 Final Candidate R2：`l5/ECE340_L5_S18_Posted_中文忠实重建_最终候选版_R2_第8-24页.pptx`
-- Final Candidate R2 SHA-256：`caf9114015ebb5c00501475a27260496348e235c526be9df469fb03bab20f3c1`
+- Final Candidate R2 SHA-256：`6c5c2336c1ec3b42df57bf03c32a7cda44f17681cc088d98991abbb8c43bc2d2`
 - 52 页页数确认：passed
 - 本轮修改页面：第 18 页
 - 本轮修改区域：第 18 页底部英文 Figure 2.8 图注区域
