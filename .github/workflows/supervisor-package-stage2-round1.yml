@@ -1,0 +1,32 @@
+name: Supervisor package Stage2 round1
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - '.github/workflows/supervisor-package-stage2-round1.yml'
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 8b0c5f5fc184ff118a6ef6682f34e491a70c2a55
+      - name: Verify evidence
+        run: |
+          test -d l5/stage2_visual_review_round1/rendered
+          test -d l5/stage2_visual_review_round1/comparison
+          test -f l5/stage2_visual_review_round1/contact_sheet_stage2_round1_pages_08_10_11_14_16_17_19_22_24.jpg
+          test -f l5/BUILD_REPORT_STAGE2_ROUND1.md
+          test -f l5/ECE340_L5_S18_Posted_中文忠实重建_第二阶段视觉返修ROUND1_第8_10_11_14_16_17_19_22_24页.pptx
+      - uses: actions/upload-artifact@v4
+        with:
+          name: stage2-round1-supervisor-evidence
+          path: |
+            l5/stage2_visual_review_round1/rendered/
+            l5/stage2_visual_review_round1/comparison/
+            l5/stage2_visual_review_round1/contact_sheet_stage2_round1_pages_08_10_11_14_16_17_19_22_24.jpg
+            l5/BUILD_REPORT_STAGE2_ROUND1.md
+            l5/ECE340_L5_S18_Posted_中文忠实重建_第二阶段视觉返修ROUND1_第8_10_11_14_16_17_19_22_24页.pptx
+          retention-days: 2
