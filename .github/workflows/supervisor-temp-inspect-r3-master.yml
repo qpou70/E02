@@ -1,0 +1,26 @@
+name: Supervisor temp inspect R3 master
+
+on:
+  pull_request:
+    branches: [master]
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: master
+      - uses: actions/upload-artifact@v4
+        with:
+          name: supervisor-r3-master-evidence
+          path: |
+            l5/BUILD_REPORT_FINAL_QA_IMAGE_REBUILD_20_22_23.md
+            l5/final_qa_image_rebuild_20_22_23/rendered/page_20.png
+            l5/final_qa_image_rebuild_20_22_23/rendered/page_22.png
+            l5/final_qa_image_rebuild_20_22_23/rendered/page_23.png
+            l5/final_qa_image_rebuild_20_22_23/comparison/page_20_original_pdf_vs_final_candidate_r3.jpg
+            l5/final_qa_image_rebuild_20_22_23/comparison/page_22_original_pdf_vs_final_candidate_r3.jpg
+            l5/final_qa_image_rebuild_20_22_23/comparison/page_23_original_pdf_vs_final_candidate_r3.jpg
+            l5/final_qa_image_rebuild_20_22_23/contact_sheet_pages_20_22_23.jpg
+          retention-days: 1
