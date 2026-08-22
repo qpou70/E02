@@ -7,14 +7,14 @@ on:
     paths:
       - '.github/workflows/run-l5-stage1-strict.yml'
       - 'l5/stage2_round4_repair.py'
-      - 'l5/stage2_round4_postfix.py'
+      - 'l5/stage2_round4_runtime_patch.py'
       - 'l5/FORCE_L5_STAGE1_STRICT_RUN.txt'
   pull_request:
     branches: [master]
     paths:
       - '.github/workflows/run-l5-stage1-strict.yml'
       - 'l5/stage2_round4_repair.py'
-      - 'l5/stage2_round4_postfix.py'
+      - 'l5/stage2_round4_runtime_patch.py'
       - 'l5/FORCE_L5_STAGE1_STRICT_RUN.txt'
 
 permissions:
@@ -39,8 +39,8 @@ jobs:
           python -m pip install python-pptx pymupdf pillow lxml
       - name: Build Stage 2 ROUND4 PPT and evidence
         run: |
+          python l5/stage2_round4_runtime_patch.py
           python l5/stage2_round4_repair.py
-          python l5/stage2_round4_postfix.py
       - name: Commit Stage 2 ROUND4 outputs
         run: |
           git config user.name 'github-actions[bot]'
