@@ -1,0 +1,59 @@
+name: L5 final R3 image rebuild pages 20 22 23
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+    paths:
+      - '.github/workflows/l5-final-r3-image-rebuild.yml'
+      - 'l5/FORCE_MASTER_L5_R3_IMAGE_REBUILD.txt'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: l5-stage1-strict-rework
+          token: ${{ github.token }}
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libreoffice fonts-noto-cjk fonts-dejavu-core
+          python -m pip install --upgrade pip
+          python -m pip install python-pptx pymupdf pillow lxml
+      - name: Build R3 image rebuild outputs
+        run: python l5/final_qa_image_rebuild_20_22_23.py
+      - name: Commit outputs to working branch
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          if git diff --cached --quiet; then
+            echo 'No generated changes.'
+          else
+            git commit -m 'Generate ECE340 L5 final candidate R3 image rebuild pages 20 22 23'
+            git pull --rebase origin l5-stage1-strict-rework
+            git push origin HEAD:l5-stage1-strict-rework
+          fi
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: l5-final-qa-image-rebuild-20-22-23
+          path: |
+            l5/ECE340_L5_S18_Posted_中文忠实重建_最终候选版_R3_第8-24页.pptx
+            l5/BUILD_REPORT_FINAL_QA_IMAGE_REBUILD_20_22_23.md
+            l5/final_qa_image_rebuild_20_22_23/generated/page_20_cn.png
+            l5/final_qa_image_rebuild_20_22_23/generated/page_22_cn.png
+            l5/final_qa_image_rebuild_20_22_23/generated/page_23_cn.png
+            l5/final_qa_image_rebuild_20_22_23/rendered/page_20.png
+            l5/final_qa_image_rebuild_20_22_23/rendered/page_22.png
+            l5/final_qa_image_rebuild_20_22_23/rendered/page_23.png
+            l5/final_qa_image_rebuild_20_22_23/comparison/page_20_original_pdf_vs_final_candidate_r3.jpg
+            l5/final_qa_image_rebuild_20_22_23/comparison/page_22_original_pdf_vs_final_candidate_r3.jpg
+            l5/final_qa_image_rebuild_20_22_23/comparison/page_23_original_pdf_vs_final_candidate_r3.jpg
+            l5/final_qa_image_rebuild_20_22_23/contact_sheet_pages_20_22_23.jpg
+          retention-days: 7
