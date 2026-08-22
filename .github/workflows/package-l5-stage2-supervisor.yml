@@ -1,0 +1,30 @@
+name: Package L5 Stage2 supervisor visual evidence
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - '.github/workflows/package-l5-stage2-supervisor.yml'
+  workflow_dispatch:
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify Stage2 evidence
+        run: |
+          test -d l5/stage2_visual_review/rendered
+          test -d l5/stage2_visual_review/comparison
+          test -f l5/stage2_visual_review/contact_sheet_stage2_pages_08_10_11_14_16_17_19_22_24.jpg
+          test -f l5/BUILD_REPORT_STAGE2.md
+          test -f 'l5/ECE340_L5_S18_Posted_中文忠实重建_第二阶段返修_第8_10_11_14_16_17_19_22_24页.pptx'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: l5-stage2-supervisor-review
+          path: |
+            l5/stage2_visual_review/rendered/
+            l5/stage2_visual_review/comparison/
+            l5/stage2_visual_review/contact_sheet_stage2_pages_08_10_11_14_16_17_19_22_24.jpg
+            l5/BUILD_REPORT_STAGE2.md
+          retention-days: 2
