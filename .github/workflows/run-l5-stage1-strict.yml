@@ -1,4 +1,4 @@
-name: Run ECE340 L5 Final QA R1 pages 8-24
+name: Run ECE340 L5 Final QA R2 page 18
 
 on:
   workflow_dispatch:
@@ -6,22 +6,20 @@ on:
     branches: [l5-stage1-strict-rework]
     paths:
       - '.github/workflows/run-l5-stage1-strict.yml'
-      - 'l5/final_qa_r1_08_24_repair.py'
-      - 'l5/final_qa_r1_runtime_patch.py'
+      - 'l5/final_qa_r2_page18_caption.py'
       - 'l5/FORCE_L5_STAGE1_STRICT_RUN.txt'
   pull_request:
     branches: [master]
     paths:
       - '.github/workflows/run-l5-stage1-strict.yml'
-      - 'l5/final_qa_r1_08_24_repair.py'
-      - 'l5/final_qa_r1_runtime_patch.py'
+      - 'l5/final_qa_r2_page18_caption.py'
       - 'l5/FORCE_L5_STAGE1_STRICT_RUN.txt'
 
 permissions:
   contents: write
 
 concurrency:
-  group: l5-final-qa-r1-08-24
+  group: l5-final-qa-r2-page18
   cancel-in-progress: true
 
 jobs:
@@ -37,45 +35,26 @@ jobs:
           sudo apt-get install -y libreoffice fonts-noto-cjk fonts-dejavu-core
           python -m pip install --upgrade pip
           python -m pip install python-pptx pymupdf pillow lxml
-      - name: Build Final Candidate R1 QA package
-        run: |
-          python l5/final_qa_r1_runtime_patch.py
-          python l5/final_qa_r1_08_24_repair.py
-      - name: Commit Final Candidate R1 QA outputs
+      - name: Build Final Candidate R2 page 18 evidence
+        run: python l5/final_qa_r2_page18_caption.py
+      - name: Commit Final Candidate R2 outputs
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           if git diff --cached --quiet; then
             echo 'No generated changes.'
           else
-            git commit -m 'Apply ECE340 L5 final QA R1 targeted fixes'
+            git commit -m 'Apply ECE340 L5 final QA R2 page 18 caption fix'
             git push origin HEAD:l5-stage1-strict-rework
           fi
-      - name: Upload Final Candidate R1 QA artifacts
+      - name: Upload Final Candidate R2 artifacts
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: l5-final-qa-r1-08-24
+          name: l5-final-qa-r2-page18
           path: |
-            l5/ECE340_L5_S18_Posted_中文忠实重建_最终候选版_R1_第8-24页.pptx
-            l5/BUILD_REPORT_FINAL_QA_R1_08_24.md
-            l5/final_qa_r1_08_24/rendered/page_08.png
-            l5/final_qa_r1_08_24/rendered/page_09.png
-            l5/final_qa_r1_08_24/rendered/page_10.png
-            l5/final_qa_r1_08_24/rendered/page_11.png
-            l5/final_qa_r1_08_24/rendered/page_12.png
-            l5/final_qa_r1_08_24/rendered/page_13.png
-            l5/final_qa_r1_08_24/rendered/page_14.png
-            l5/final_qa_r1_08_24/rendered/page_15.png
-            l5/final_qa_r1_08_24/rendered/page_16.png
-            l5/final_qa_r1_08_24/rendered/page_17.png
-            l5/final_qa_r1_08_24/rendered/page_18.png
-            l5/final_qa_r1_08_24/rendered/page_19.png
-            l5/final_qa_r1_08_24/rendered/page_20.png
-            l5/final_qa_r1_08_24/rendered/page_21.png
-            l5/final_qa_r1_08_24/rendered/page_22.png
-            l5/final_qa_r1_08_24/rendered/page_23.png
-            l5/final_qa_r1_08_24/rendered/page_24.png
-            l5/final_qa_r1_08_24/comparison/*.jpg
-            l5/final_qa_r1_08_24/contact_sheet_final_qa_r1_pages_08_24.jpg
+            l5/ECE340_L5_S18_Posted_中文忠实重建_最终候选版_R2_第8-24页.pptx
+            l5/BUILD_REPORT_FINAL_QA_R2_PAGE18.md
+            l5/final_qa_r2_page18/rendered/page_18.png
+            l5/final_qa_r2_page18/comparison/page_18_original_pdf_vs_final_candidate_r2.jpg
           retention-days: 7
