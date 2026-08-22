@@ -1,2 +1,2 @@
-Trigger strict Stage 1 run after supervisor round3 feedback.
-Run token: 20260822-round3-page23-mask-only-no-workflow
+Trigger strict Stage 1 run after supervisor round4 feedback.
+Run token: 20260822-round4-page23-two-remnants-only
