@@ -24,7 +24,7 @@
 - 学生 PPT 页面中无 `源页`、`原页裁取`、`去除标题条`、`已清理`、`页面只保留`、`只保留一处`、`等比裁取`、`不叠加公式`、`真实设备照片`、`已完成中文化`、`本页已重建`、`保留原图`、`施工`、`待替换`、`占位`、`Placeholder`、`此处放图`。
 - 不使用红框中文贴纸。
 - 图片按 contain 方式等比放置，不做非等比拉伸。
-- PPT SHA-256（渲染前）：`bea5c48f87354a77be8387201ef7a8924038f89da6cd2151dbc554bfc36ca83c`
+- PPT SHA-256（渲染前）：`fafddde9156ceaac1288a51e780a4e562f4130113b4689e2a1b14e2f774d9bfb`
 
 
 ## 渲染与证据
@@ -37,4 +37,4 @@
 - 逐页人工视觉复核对象：上述 7 张高清渲染 PNG 与 7 张 Original PDF vs New Page 对照图。
 - Worker self-check: passed.
 - Supervisor visual acceptance: pending.
-- PPT SHA-256（渲染后）：`bea5c48f87354a77be8387201ef7a8924038f89da6cd2151dbc554bfc36ca83c`
+- PPT SHA-256（渲染后）：`fafddde9156ceaac1288a51e780a4e562f4130113b4689e2a1b14e2f774d9bfb`
