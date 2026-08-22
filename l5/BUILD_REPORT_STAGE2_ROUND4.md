@@ -22,7 +22,7 @@
 - 不存在大段英文 bullet list。
 - 不存在 `Two electrons per bond` 或 `Swarm of delocalised electrons` 可见文本。
 - 三个 `ΔE` 标签和两处中文化说明已写入页面。
-- PPT SHA-256（渲染前）：`b6223f6ec29b9111a2cb0123c2bb202d21969524d1e7690fe1f29e383abd84d1`
+- PPT SHA-256（渲染前）：`423ca874296c57d3181ac904ef02f4fa388f1091329ac18c3400618c9291f16c`
 
 ## 渲染与证据
 
@@ -31,12 +31,4 @@
 - Contact sheet：`l5/stage2_visual_review_round4/contact_sheet_stage2_round4_page_16.jpg`。
 - Worker self-check: passed.
 - Supervisor visual acceptance: pending.
-- PPT SHA-256（渲染后）：`b6223f6ec29b9111a2cb0123c2bb202d21969524d1e7690fe1f29e383abd84d1`
-
-
-## ROUND4 postfix visual cleanup
-
-- 已在第 16 页局部覆盖右上晶格图中残留的英文碎片。
-- 已在第 16 页局部覆盖金属键图中残留的 `Swarm of delocalised electrons`，并在同一区域加入 `离域电子海`。
-- 冻结页复核：与 ROUND3 基准相比，仅第 16 页 XML 发生变化。
-- PPT SHA-256（postfix 后）：`e086b07ca8f7d111386ad570413277336340b3de4e52e19f941713f62861a045`
+- PPT SHA-256（渲染后）：`423ca874296c57d3181ac904ef02f4fa388f1091329ac18c3400618c9291f16c`
