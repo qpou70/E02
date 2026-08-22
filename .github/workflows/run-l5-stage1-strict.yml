@@ -7,12 +7,7 @@ on:
     paths:
       - '.github/workflows/run-l5-stage1-strict.yml'
       - 'l5/final_qa_image_rebuild_20_22_23.py'
-      - 'l5/FORCE_L5_STAGE1_STRICT_RUN.txt'
-  pull_request:
-    branches: [master]
-    paths:
-      - '.github/workflows/run-l5-stage1-strict.yml'
-      - 'l5/final_qa_image_rebuild_20_22_23.py'
+      - 'l5/run_final_qa_image_rebuild_20_22_23_fixed.py'
       - 'l5/FORCE_L5_STAGE1_STRICT_RUN.txt'
 
 permissions:
@@ -36,7 +31,7 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install python-pptx pymupdf pillow lxml
       - name: Build Final Candidate R3 pages 20 22 23
-        run: python l5/final_qa_image_rebuild_20_22_23.py
+        run: python l5/run_final_qa_image_rebuild_20_22_23_fixed.py
       - name: Commit R3 outputs
         run: |
           git config user.name 'github-actions[bot]'
