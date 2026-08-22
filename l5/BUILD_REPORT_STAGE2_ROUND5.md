@@ -6,13 +6,13 @@
 - 本轮只修改第 16 页右下金属键图区。
 - 其他 slide 冻结：第 8–15、17–24 页；第 1–7、25–52 页。
 - Slide XML 检查：仅第 16 页与 ROUND4 基准不同。
-- 删除对象数量：5 个，仅限右下金属键区域重建。
+- 删除对象数量：4 个，仅限右下金属键区域重建。
 
 ## 第 16 页右下金属键图区处理
 
 - 从 Original PDF 第 16 页重新干净裁取金属键科学图的实际科学区域。
 - 裁取内容只包括：左侧正离子实与小橙色离域电子、中央红色箭头、右侧电子云中的正离子实。
-- 不裁入 `Metallic Bonding`、`Swarm of delocalised electrons`、英文长段说明或原图外部空白。
+- 不裁入 `Metallic Bonding`、`Swarm of delocalised electrons`、英文长段说明、原图边框或原图外部空白。
 - 保留中文标题 `金属键：正离子实 + 离域电子海` 与中文说明 `离域电子海`。
 - 保持三幅 ΔE 标签和 `每个键由两个电子共享` 不变。
 
@@ -26,5 +26,5 @@
 
 - Worker self-check 状态：passed。
 - Supervisor visual acceptance: pending。
-- PPT SHA-256（渲染前）：`8b6c4541a5343149f97741315e4e18fd88b97d38c5057b671d611ec377d88a12`
-- PPT SHA-256（渲染后）：`8b6c4541a5343149f97741315e4e18fd88b97d38c5057b671d611ec377d88a12`
+- PPT SHA-256（渲染前）：`4f1ed8f411303558dfefae8a0c99df84ee03b6e618eccfc77e1e85e2ccd35c2d`
+- PPT SHA-256（渲染后）：`4f1ed8f411303558dfefae8a0c99df84ee03b6e618eccfc77e1e85e2ccd35c2d`
