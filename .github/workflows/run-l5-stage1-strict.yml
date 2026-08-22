@@ -1,4 +1,4 @@
-name: Run ECE340 L5 Stage 2 ROUND5 repair
+name: Run ECE340 L5 Final QA pages 8-24
 
 on:
   workflow_dispatch:
@@ -6,22 +6,20 @@ on:
     branches: [l5-stage1-strict-rework]
     paths:
       - '.github/workflows/run-l5-stage1-strict.yml'
-      - 'l5/stage2_round5_repair.py'
-      - 'l5/stage2_round5_runtime_patch.py'
+      - 'l5/final_qa_08_24_packaging.py'
       - 'l5/FORCE_L5_STAGE1_STRICT_RUN.txt'
   pull_request:
     branches: [master]
     paths:
       - '.github/workflows/run-l5-stage1-strict.yml'
-      - 'l5/stage2_round5_repair.py'
-      - 'l5/stage2_round5_runtime_patch.py'
+      - 'l5/final_qa_08_24_packaging.py'
       - 'l5/FORCE_L5_STAGE1_STRICT_RUN.txt'
 
 permissions:
   contents: write
 
 concurrency:
-  group: l5-stage2-round5-visual-repair
+  group: l5-final-qa-08-24
   cancel-in-progress: true
 
 jobs:
@@ -37,29 +35,43 @@ jobs:
           sudo apt-get install -y libreoffice fonts-noto-cjk fonts-dejavu-core
           python -m pip install --upgrade pip
           python -m pip install python-pptx pymupdf pillow lxml
-      - name: Build Stage 2 ROUND5 PPT and evidence
-        run: |
-          python l5/stage2_round5_runtime_patch.py
-          python l5/stage2_round5_repair.py
-      - name: Commit Stage 2 ROUND5 outputs
+      - name: Build Final Candidate QA package
+        run: python l5/final_qa_08_24_packaging.py
+      - name: Commit Final Candidate QA outputs
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           if git diff --cached --quiet; then
             echo 'No generated changes.'
           else
-            git commit -m 'Apply Stage 2 ROUND5 page 16 metallic bonding cleanup outputs'
+            git commit -m 'Package ECE340 L5 final candidate QA pages 8-24'
             git push origin HEAD:l5-stage1-strict-rework
           fi
-      - name: Upload Stage 2 ROUND5 visual artifacts
+      - name: Upload Final Candidate QA artifacts
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: l5-stage2-round5-visual-review
+          name: l5-final-qa-08-24
           path: |
-            l5/ECE340_L5_S18_Posted_中文忠实重建_第二阶段视觉返修ROUND5_第16页.pptx
-            l5/BUILD_REPORT_STAGE2_ROUND5.md
-            l5/stage2_visual_review_round5/rendered/page_16.png
-            l5/stage2_visual_review_round5/comparison/page_16_original_pdf_vs_new_round5.jpg
-            l5/stage2_visual_review_round5/contact_sheet_stage2_round5_page_16.jpg
+            l5/ECE340_L5_S18_Posted_中文忠实重建_最终候选版_第8-24页.pptx
+            l5/BUILD_REPORT_FINAL_QA_08_24.md
+            l5/final_qa_08_24/rendered/page_08.png
+            l5/final_qa_08_24/rendered/page_09.png
+            l5/final_qa_08_24/rendered/page_10.png
+            l5/final_qa_08_24/rendered/page_11.png
+            l5/final_qa_08_24/rendered/page_12.png
+            l5/final_qa_08_24/rendered/page_13.png
+            l5/final_qa_08_24/rendered/page_14.png
+            l5/final_qa_08_24/rendered/page_15.png
+            l5/final_qa_08_24/rendered/page_16.png
+            l5/final_qa_08_24/rendered/page_17.png
+            l5/final_qa_08_24/rendered/page_18.png
+            l5/final_qa_08_24/rendered/page_19.png
+            l5/final_qa_08_24/rendered/page_20.png
+            l5/final_qa_08_24/rendered/page_21.png
+            l5/final_qa_08_24/rendered/page_22.png
+            l5/final_qa_08_24/rendered/page_23.png
+            l5/final_qa_08_24/rendered/page_24.png
+            l5/final_qa_08_24/comparison/*.jpg
+            l5/final_qa_08_24/contact_sheet_final_qa_pages_08_24.jpg
           retention-days: 7
