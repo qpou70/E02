@@ -12,6 +12,8 @@ replacements = [
      'textbox(s,3.95,2.37,0.90,0.20,"原子轨道",7.0,True,RGBColor(0,174,222),PP_ALIGN.CENTER,margin=0)'),
     ('mask(s,5.83,1.83,1.16,0.19)', 'mask(s,5.70,1.74,1.70,0.35)'),
     ('mask(s,6.25,2.98,0.88,0.17)', 'mask(s,6.10,2.86,1.55,0.35)'),
+    ('textbox(s,6.25,2.96,0.82,0.18,"成键轨道",6.6,True,RGBColor(0,174,222),PP_ALIGN.LEFT,margin=0)',
+     'textbox(s,6.13,2.96,1.22,0.20,"成键轨道",6.6,True,RGBColor(0,174,222),PP_ALIGN.LEFT,margin=0)'),
     ('mask(s,7.36,1.40,2.28,0.26)', 'mask(s,6.05,1.30,3.55,0.45)'),
     ('textbox(s,7.36,1.39,2.20,0.23,"电子不位于两核之间",8.1,False,BLACK,PP_ALIGN.LEFT,margin=0)',
      'textbox(s,7.20,1.40,2.15,0.24,"电子不位于两核之间",8.1,False,BLACK,PP_ALIGN.LEFT,margin=0)'),
@@ -36,11 +38,19 @@ for old, new in replacements:
     text = text.replace(old, new)
 
 anchor = '# Left lower density captions and figure caption.\n'
-insert = '# Left lower density captions and figure caption.\n# Cover source URL / leftover caption fragments from the original English figure.\nmask(s,0.72,4.78,1.95,0.48)\n'
+insert = '''# Left lower density captions and figure caption.
+# Cover source URL / leftover caption fragments from the original English figure.
+mask(s,0.72,4.78,1.95,0.48)
+# Cover remaining original English micro-labels exposed after contain-scaling.
+mask(s,3.55,2.60,1.55,0.36)
+mask(s,5.92,2.98,1.30,0.34)
+mask(s,4.42,4.78,1.12,0.34)
+textbox(s,4.68,4.84,0.62,0.22,"图 3.2",8.4,False,GRAY,PP_ALIGN.CENTER,margin=0)
+'''
 count = text.count(anchor)
 if count != 1:
     raise RuntimeError(f'Expected one lower-caption anchor, got {count}')
 text = text.replace(anchor, insert)
 
 runtime.write_text(text, encoding='utf-8')
-print('page 12 angle overlay intentionally disabled; tightened page 23 round3 masks')
+print('page 12 angle overlay intentionally disabled; tightened remaining page 23 English masks')
